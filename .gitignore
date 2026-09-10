@@ -1,0 +1,44 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.cache/
+htmlcov/
+
+# Data are versioned through manifests, never committed directly.
+data/raw/
+data/interim/
+data/processed/
+data/cache/
+!data/**/.gitkeep
+
+outputs/
+checkpoints/
+wandb/
+*.pt
+*.pth
+*.ckpt
+
+.env
+*.token
+neuprint_token*
+
+# Upstream research code is pinned in vendor/baselines.lock.yaml and cloned on demand.
+external/baselines/
+.paper-env/
+
+# LaTeX intermediates; the review PDF is retained as a project artifact.
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.log
+paper/*.out
+paper/*.fls
+paper/*.fdb_latexmk
+
+# Internal development audits are not part of the public release.
+reports/
+.venv-baselines/

@@ -1,0 +1,40 @@
+hardware:
+  gpu_count: 2
+  gpu_type: NVIDIA A100-SXM4-80GB
+  cpu_workers: 32
+  precision: bf16
+  tf32: true
+
+allocation:
+  gpu0:
+    - UltraQuery
+    - GNN-QE
+    - Query2Box
+    - BetaE
+  gpu1:
+    - AStarNet
+    - NBFNet
+    - ConE
+    - inductive_policy
+  cpu:
+    preprocessing_workers: 24
+    dataloader_workers_per_gpu: 4
+    statistics_workers: 4
+
+profiles:
+  smoke:
+    seeds: [17]
+    query_limit: 100
+    epochs: 1
+  development:
+    seeds: [17]
+    query_limit: 1000
+    epochs: 3
+  paper:
+    seeds: [17, 23, 42]
+    query_limit: null
+    epochs: 5
+    early_stopping:
+      monitor: validation_mrr
+      patience: 2
+      retain_all_completed_runs: true

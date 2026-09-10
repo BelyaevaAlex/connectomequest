@@ -1,0 +1,112 @@
+campaign: connectomequest-graph-evaluation
+status: development_only_until_v2_seal
+inherits_evidence_from: connectomequest-confirmatory
+frozen_v1:
+  protocol: outputs/nemo/confirmatory/FROZEN-PROTOCOL.json
+  active_report: reports/nemo-confirmatory-active.json
+  second_hop_report: reports/nemo-confirmatory-second-hop.json
+  immutable: true
+
+objective:
+  primary: success_at_budget_64
+  constraints:
+    submitted_proof_validity: 1.0
+    illegal_action_rate: 0.0
+    no_entity_embeddings: true
+  optimization_priority:
+    - first_hop_middle_discovery
+    - success_at_budget_64
+    - mean_budget_used
+    - first_proof_mrr
+
+data:
+  bundles: [h01-20210729-c3, manc-v1.0, hemibrain-v1.2.1]
+  development_queries: queries-loco-replication-seed2026.parquet
+  existing_probe1_snapshots: outputs/nemo/snapshots/probes1
+  additional_first_hop_snapshots: outputs/nemo/v2/snapshots
+  first_hop_probe_regimes: [0, 1, 2, 4]
+  second_hop_probe_regimes: [1]
+  train_on_two_test_on_third: true
+  domain_balanced_sampling: true
+  target_entity_ids_forbidden: true
+
+model:
+  family: entity_id_free_stage_aware_listwise_v2
+  hidden_dim: 128
+  query_dim: 32
+  dropout: 0.1
+  training_seeds: [17, 29, 43]
+  loss:
+    type: masked_stage_aware_listwise
+    first_hop_weight: 2.0
+    second_hop_weight: 1.0
+    completion_utility: binary_relevance
+  missing_sketch:
+    explicit_mask: true
+    impute_value: 0.0
+  early_stopping:
+    metric: source_validation_macro_first_proof_mrr
+    patience: 4
+
+controller:
+  actions: [inspect, probe_affordance, traverse, check_edge, backtrack, submit]
+  visible_neighbors: 32
+  candidates_per_subgoal: 4
+  budgets: [16, 32, 64]
+  adaptive_probe:
+    enabled: true
+    maximum: 4
+    probe_stop_inputs: [score_margin, normalized_entropy]
+    policy_uncertainty_outputs: [score_margin, normalized_entropy, mean_available_expert_ood]
+  contextual_portfolio:
+    stage: first_hop
+    experts: [weight, random, snapshot_v2, minerva, diverse]
+    second_hop_expert: snapshot_v2
+    input_dim: 37
+    context_inputs:
+      - query_type_one_hot
+      - frontier_indicator
+      - semantic_relation_present
+      - log_candidate_count
+      - log_remaining_budget
+      - visible_sketch_fraction
+      - visible_edge_fraction
+    per_expert_inputs:
+      - score_margin
+      - normalized_entropy
+      - ood_score
+      - uncertainty_available
+      - fallback_rank_disagreement
+    exact_weight_fallback: true
+    utility_target: first_proof_reciprocal_rank
+    selection_split: two_source_replication_validation_seed2026
+    held_out_validation_access: false
+    confidence_threshold_grid_size: 101
+    selection_rule: paired_bootstrap_nonnegative_95pct_lower_bound
+
+resource_plan:
+  snapshot_build:
+    device: cpu
+    workers: 6
+    omp_threads_per_worker: 1
+  training:
+    gpu_type: A100_80GB
+    processes_per_gpu: 3
+    cpu_threads_per_process: 2
+    mixed_precision: bf16
+    max_host_memory_gb_per_process: 20
+  evaluation:
+    device: cpu
+    workers: 8
+    omp_threads_per_worker: 1
+  reuse_existing_checkpoints: [pytorch_minerva, weight, random, diverse]
+  forbidden_duplicate_jobs: [astarnet_production, nbfnet_production, cqa_retraining]
+
+v2_confirmatory:
+  status: forbidden_until_development_selection_and_seal
+  generator_seed: 2718281
+  total_queries_per_connectome: 50000
+  expected_test_queries_per_connectome: 5000
+  open_test_once: true
+  no_hyperparameter_changes_after_open: true
+  report_mean_std_and_paired_bootstrap_ci: true

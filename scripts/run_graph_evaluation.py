@@ -1,0 +1,343 @@
+#!/usr/bin/env python3
+"""Controller-matched telemetry and paired label-coarsening, without frozen edits."""
+
+from __future__ import annotations
+
+import argparse
+import fcntl
+import json
+import sys
+import time
+from collections import Counter
+from dataclasses import replace
+from pathlib import Path
+
+import numpy as np
+import pyarrow as pa
+import pyarrow.parquet as pq
+import torch
+
+REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO / "scripts"))
+sys.path.insert(0, str(REPO))
+from run_controller_comparison import FirstHopRandomSecondHopSnapshotPolicy, verify_postseal_inputs
+from run_review_controls import PRIMARY, AuditGraph
+
+from connectomequest.agents.explorer import BudgetedExplorer
+from connectomequest.confirmatory_evaluation_v2 import load_cell_policy
+from connectomequest.confirmatory_v2 import DATASETS, query_path, read_confirmatory_test_queries
+from connectomequest.embodied.metrics import write_once
+from connectomequest.env import ActionType, ConnectomeEnv
+from connectomequest.evaluation import episode_metrics, metrics_as_dict
+from connectomequest.manifest import sha256_file
+from connectomequest.policies.expert_gate_v2 import ObservableRandomPolicy
+
+ROOT = REPO / "outputs/nemo/strong-accept/contract-audit-v2"
+METHODS = ("weight", "random", "minerva", "snapshot_v2", "gate_v2", "random_snapshot_v2")
+
+
+def classify(success, useful, selected, remaining, remaining_steps):
+    if success:
+        return "success"
+    if not useful:
+        return "a_no_first_page_witness"
+    if not (useful & selected):
+        return "b_no_useful_middle_traversed"
+    if remaining <= 4 or remaining_steps <= 1:
+        return "d_resource_reserve"
+    return "c_selected_no_certificate"
+
+
+class TraceEnv(ConnectomeEnv):
+    """Passive action telemetry. step() calls the original implementation once."""
+
+    def reset(self, query):
+        self.middle_visits = []
+        self.inspections = Counter()
+        self.checks = 0
+        return super().reset(query)
+
+    def step(self, action):
+        before = self.state.current_node
+        outer = len(self.state.history) == 0 and before == self.query.anchors[0]
+        result = super().step(action)
+        if result.error is None:
+            if action.kind == ActionType.TRAVERSE and outer:
+                self.middle_visits.append(action.target)
+            if action.kind == ActionType.INSPECT:
+                self.inspections[(before, action.relation)] += 1
+            if action.kind == ActionType.CHECK_EDGE:
+                self.checks += 1
+        return result
+
+
+def visible(graph, node):
+    return frozenset(
+        graph.neighbors(node, "presynaptic_to", limit=32, by_weight=True).node_ids.tolist()
+    )
+
+
+def labels(graph, relation):
+    csr = graph.csr(relation)
+    return {
+        node: int(csr.indices[csr.indptr[node]]) for node in np.flatnonzero(np.diff(csr.indptr))
+    }
+
+
+def run(graph_name, component, limit):
+    out = ROOT / (f"smoke-{limit}" if limit else "full") / graph_name / component
+    out.mkdir(parents=True, exist_ok=True)
+    with (out / "RUN.lock").open("w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        seal = verify_postseal_inputs(REPO)
+        graph = AuditGraph(REPO / "data/processed" / DATASETS[graph_name])
+        queries = read_confirmatory_test_queries(REPO, graph_name, graph, verified_seal=seal)
+        if limit:
+            queries = queries[:limit]
+        methods = METHODS
+        cfg = {
+            "status": "post-test paired diagnostic",
+            "component": component,
+            "graph": graph_name,
+            "query_sha256": sha256_file(query_path(REPO, graph_name)),
+            "limit": limit,
+            "V": 32,
+            "B": 64,
+            "H": 64,
+            "candidate_cap": 4,
+            "probes": 0,
+            "methods": list(methods),
+            "model_seeds": [17, 29, 43],
+            "taxonomy": "success; a=no first-page witness; b=no useful middle traversed; d=remaining cost<=4 or remaining steps<=1; else c",
+            "implementation_sha256": {
+                str(p.relative_to(REPO)): sha256_file(p)
+                for p in [
+                    Path(__file__),
+                    REPO / "src/connectomequest/env.py",
+                    REPO / "src/connectomequest/agents/explorer.py",
+                ]
+            },
+        }
+        coarse = None
+        if component == "coarse":
+            assert graph_name in ("manc", "hemibrain")
+            coarse = AuditGraph(
+                REPO
+                / "outputs/nemo/strong-accept/difficulty-matched-coarse7-v1/graphs"
+                / f"{DATASETS[graph_name]}-coarse7"
+            )
+            native_labels, coarse_labels = labels(graph, "has_type"), labels(coarse, "has_type")
+            mapping = {}
+            for node, native in native_labels.items():
+                target = coarse_labels[node]
+                if native in mapping:
+                    assert mapping[native] == target
+                mapping[native] = target
+            cfg["derived_graph_sha256"] = sha256_file(coarse.manifest_path)
+            cfg["mapping"] = sorted(mapping.items())
+        write_once(out / "PROTOCOL.json", cfg)
+        if (out / "aggregate.json").exists():
+            prior = json.loads((out / "aggregate.json").read_text())
+            assert prior["rows_sha256"] == sha256_file(out / "rows.parquet")
+            print(json.dumps({"status": "reused", "out": str(out)}), flush=True)
+            return
+        page_cache = {}
+        reach_cache = {}
+
+        def page(node):
+            if node not in page_cache:
+                page_cache[node] = visible(graph, node)
+            return page_cache[node]
+
+        # Compute query properties once, not separately for each policy/seed.
+        prepared = []
+        for q in queries:
+            first = page(q.anchors[0])
+            reachable = set().union(*(page(m) for m in first))
+            useful = {m for m in first if q.answers & page(m)}
+            current = q
+            if coarse is not None:
+                a, y = q.anchors
+                target = mapping[y]
+                if a not in reach_cache:
+                    reach_cache[a] = set().union(
+                        *(
+                            set(
+                                graph.neighbors(
+                                    int(m), "presynaptic_to", by_weight=False
+                                ).node_ids.tolist()
+                            )
+                            for m in graph.neighbors(a, "presynaptic_to", by_weight=False).node_ids
+                        )
+                    )
+                answers = frozenset(x for x in reach_cache[a] if coarse_labels.get(x) == target)
+                assert q.answers <= answers
+                current = replace(q, anchors=(a, target), answers=answers)
+            prepared.append(
+                (
+                    current,
+                    useful,
+                    len(reachable & q.answers) / max(1, len(reachable)),
+                    len(reachable & current.answers) / max(1, len(reachable)),
+                )
+            )
+        rows = []
+        provenance = {}
+        started = time.monotonic()
+        for method in methods:
+            for seed in [17] if method == "weight" else [17, 29, 43]:
+                cell_path = out / f"{method}-{seed}.parquet"
+                cell_seal = out / f"{method}-{seed}.json"
+                if cell_seal.exists():
+                    saved = json.loads(cell_seal.read_text())
+                    assert saved["sha256"] == sha256_file(cell_path)
+                    rows.extend(pq.read_table(cell_path).to_pylist())
+                    provenance[f"{method}-{seed}"] = saved["provenance"]
+                    continue
+                policy, meta = load_cell_policy(
+                    REPO,
+                    {
+                        "held_out": graph_name,
+                        "method": "snapshot_v2" if method == "random_snapshot_v2" else method,
+                        "seed": seed,
+                    },
+                    torch.device("cpu"),
+                )
+                if method == "random_snapshot_v2":
+                    policy = FirstHopRandomSecondHopSnapshotPolicy(
+                        ObservableRandomPolicy(seed), policy
+                    )
+                provenance[f"{method}-{seed}"] = meta
+                primary = PRIMARY / graph_name / f"{method}-b64-seed{seed}.parquet"
+                original = {r["query_id"]: r for r in pq.read_table(primary).to_pylist()}
+                for i, (q, useful, native_density, coarse_density) in enumerate(prepared):
+                    env = TraceEnv(
+                        coarse or graph,
+                        visible_neighbors=32,
+                        budget=64,
+                        max_steps=64,
+                        answer_quota=1,
+                        enforce_proof=True,
+                    )
+                    env.reset(q)
+                    result = BudgetedExplorer(
+                        policy=policy,
+                        ranking="policy",
+                        device=torch.device("cpu"),
+                        seed=seed,
+                        candidates_per_subgoal=4,
+                        subgoal_probes=0,
+                    ).run(env, q.spec)
+                    metrics = metrics_as_dict(episode_metrics(q, result))
+                    ref = original[q.query_id]
+                    if component == "taxonomy":
+                        assert metrics["goal_success"] == ref["goal_success"], (
+                            method,
+                            seed,
+                            q.query_id,
+                            "success",
+                        )
+                        assert metrics["budget_used"] == ref["budget_used"], (
+                            method,
+                            seed,
+                            q.query_id,
+                            "budget",
+                        )
+                    rows.append(
+                        {
+                            "method": method,
+                            "seed": seed,
+                            **metrics,
+                            "primary_success": ref["goal_success"],
+                            "primary_budget": ref["budget_used"],
+                            "primary_sha256": sha256_file(primary) if i == 0 else "",
+                            "native_relevance_fraction": native_density,
+                            "evaluated_relevance_fraction": coarse_density,
+                            "distinct_middles": len(set(env.middle_visits)),
+                            "checks": env.checks,
+                            "repeated_inspections": sum(
+                                max(0, n - 1) for n in env.inspections.values()
+                            ),
+                            "failure_category": classify(
+                                metrics["goal_success"],
+                                useful,
+                                set(env.middle_visits),
+                                env.state.remaining_budget,
+                                env.max_steps - env.state.step,
+                            )
+                            if component == "taxonomy"
+                            else "not_applicable",
+                        }
+                    )
+                    if (i + 1) % 500 == 0:
+                        (out / "HEARTBEAT.json").write_text(
+                            json.dumps(
+                                {
+                                    "time_unix": time.time(),
+                                    "method": method,
+                                    "seed": seed,
+                                    "query": i + 1,
+                                }
+                            )
+                        )
+                        print(
+                            json.dumps(
+                                {
+                                    "graph": graph_name,
+                                    "component": component,
+                                    "method": method,
+                                    "seed": seed,
+                                    "done": i + 1,
+                                    "total": len(prepared),
+                                    "seconds": round(time.monotonic() - started, 1),
+                                }
+                            ),
+                            flush=True,
+                        )
+                # Atomic per-cell checkpoints avoid silent loss of completed cells.
+                temporary = cell_path.with_suffix(".parquet.tmp")
+                pq.write_table(
+                    pa.Table.from_pylist(
+                        [r for r in rows if r["method"] == method and r["seed"] == seed]
+                    ),
+                    temporary,
+                    compression="zstd",
+                )
+                temporary.replace(cell_path)
+                write_once(cell_seal, {"sha256": sha256_file(cell_path), "provenance": meta})
+        pq.write_table(pa.Table.from_pylist(rows), out / "rows.parquet", compression="zstd")
+        summary = {}
+        for method in methods:
+            selected = [r for r in rows if r["method"] == method]
+            n = len(selected)
+            counts = Counter(r["failure_category"] for r in selected)
+            summary[method] = {
+                "episodes": n,
+                "success": float(np.mean([r["goal_success"] for r in selected])),
+                "primary_success": float(np.mean([r["primary_success"] for r in selected])),
+                "budget": float(np.mean([r["budget_used"] for r in selected])),
+                "distinct_middles": float(np.mean([r["distinct_middles"] for r in selected])),
+                "failure_rates": {k: v / n for k, v in counts.items()},
+            }
+        report = {
+            "protocol": cfg,
+            "summary": summary,
+            "provenance": provenance,
+            "rows_sha256": sha256_file(out / "rows.parquet"),
+            "wall_seconds": time.monotonic() - started,
+        }
+        write_once(out / "aggregate.json", report)
+        print(json.dumps({"status": "complete", "out": str(out), "summary": summary}), flush=True)
+
+
+if __name__ == "__main__":
+    pa.set_cpu_count(1)
+    pa.set_io_thread_count(1)
+    torch.set_num_threads(1)
+    torch.set_num_interop_threads(1)
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--graph", choices=DATASETS, required=True)
+    ap.add_argument("--component", choices=("taxonomy", "coarse"), required=True)
+    ap.add_argument("--limit", type=int, default=0)
+    args = ap.parse_args()
+    run(args.graph, args.component, args.limit)

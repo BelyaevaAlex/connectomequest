@@ -1,0 +1,207 @@
+"""Replayable provenance traces and exact proof validation."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+from dataclasses import dataclass, field
+from enum import StrEnum
+
+from connectomequest.graph import GraphStore
+from connectomequest.query import Query, QueryType
+from connectomequest.schema import Relation
+
+
+class EvidenceKind(StrEnum):
+    EDGE = "edge"
+    NON_EDGE = "non_edge"
+    ATTRIBUTE = "attribute"
+
+
+@dataclass(frozen=True, slots=True)
+class Evidence:
+    kind: EvidenceKind
+    src: int
+    relation: str
+    dst: int
+    source_record: str = ""
+    weight: float = 1.0
+    # These fields turn an evidence item into an issued, replayable token.
+    # They remain optional for the legacy graph-only validator.
+    token_id: str = ""
+    query_id: str = ""
+    episode_nonce: str = ""
+    issued_step: int = -1
+    action_kind: str = ""
+
+
+def evidence_digest(evidence: Evidence) -> str:
+    """Canonical digest of the token payload (excluding token_id itself)."""
+    payload = {
+        "kind": str(evidence.kind),
+        "src": int(evidence.src),
+        "relation": evidence.relation,
+        "dst": int(evidence.dst),
+        "source_record": evidence.source_record,
+        "weight": float(evidence.weight),
+        "query_id": evidence.query_id,
+        "episode_nonce": evidence.episode_nonce,
+        "issued_step": int(evidence.issued_step),
+        "action_kind": evidence.action_kind,
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
+@dataclass(slots=True)
+class Proof:
+    query_id: str
+    submitted_answers: set[int]
+    evidence: list[Evidence] = field(default_factory=list)
+
+
+@dataclass(frozen=True, slots=True)
+class ValidationResult:
+    valid: bool
+    answer_correct: bool
+    evidence_valid: bool
+    missing_answers: frozenset[int]
+    extra_answers: frozenset[int]
+    errors: tuple[str, ...]
+
+
+class ProofValidator:
+    def __init__(
+        self,
+        graph: GraphStore,
+        *,
+        strict: bool = False,
+        expected_source_record: str | None = None,
+    ):
+        self.graph = graph
+        self.strict = strict
+        self.expected_source_record = expected_source_record
+
+    def validate(
+        self,
+        query: Query,
+        proof: Proof,
+        *,
+        require_complete: bool = True,
+        active_query_id: str | None = None,
+        episode_nonce: str | None = None,
+        issued_token_ids: dict[str, str] | None = None,
+        current_step: int | None = None,
+    ) -> ValidationResult:
+        expected = set(query.answers)
+        missing = expected - proof.submitted_answers
+        extra = proof.submitted_answers - expected
+        answer_correct = not extra and (not missing if require_complete else True)
+        errors: list[str] = []
+        evidence_valid = True
+        strict = self.strict or any(
+            value is not None
+            for value in (active_query_id, episode_nonce, issued_token_ids, current_step)
+        )
+        if strict and active_query_id is None:
+            active_query_id = query.query_id
+        if strict and proof.query_id != active_query_id:
+            evidence_valid = False
+            errors.append("proof query_id is not bound to the active query")
+        seen_token_ids: set[str] = set()
+        for item in proof.evidence:
+            if strict:
+                if item.token_id and item.token_id in seen_token_ids:
+                    evidence_valid = False
+                    errors.append(f"evidence token is duplicated: {item.token_id[:12]}")
+                if item.token_id:
+                    seen_token_ids.add(item.token_id)
+                if not item.token_id:
+                    evidence_valid = False
+                    errors.append("evidence token_id is missing")
+                elif issued_token_ids is None or item.token_id not in issued_token_ids:
+                    evidence_valid = False
+                    errors.append(f"evidence token was not issued: {item.token_id[:12]}")
+                elif issued_token_ids[item.token_id] != evidence_digest(item):
+                    evidence_valid = False
+                    errors.append(f"evidence token payload mismatch: {item.token_id[:12]}")
+                if active_query_id is not None and item.query_id != active_query_id:
+                    evidence_valid = False
+                    errors.append("evidence query_id is not bound to the active query")
+                if episode_nonce is not None and item.episode_nonce != episode_nonce:
+                    evidence_valid = False
+                    errors.append("evidence episode_nonce is stale or foreign")
+                if item.issued_step < 0 or (
+                    current_step is not None and item.issued_step > current_step
+                ):
+                    evidence_valid = False
+                    errors.append("evidence issued_step is invalid")
+                if (
+                    self.expected_source_record is not None
+                    and item.source_record != self.expected_source_record
+                ):
+                    evidence_valid = False
+                    errors.append("evidence source_record is not the sealed graph artifact")
+            exists = self.graph.has_edge(item.src, item.dst, item.relation)
+            if item.kind == EvidenceKind.NON_EDGE and exists:
+                evidence_valid = False
+                errors.append(f"claimed non-edge exists: {item.src}-{item.relation}->{item.dst}")
+            elif item.kind != EvidenceKind.NON_EDGE and not exists:
+                evidence_valid = False
+                errors.append(f"claimed edge absent: {item.src}-{item.relation}->{item.dst}")
+        # A non-empty answer must be grounded, not merely guessed.
+        if proof.submitted_answers and not proof.evidence:
+            evidence_valid = False
+            errors.append("submitted answers have no evidence")
+        for answer in proof.submitted_answers:
+            if not self._answer_has_query_evidence(query, answer, proof.evidence):
+                evidence_valid = False
+                errors.append(f"answer {answer} lacks query-compatible evidence")
+        return ValidationResult(
+            valid=answer_correct and evidence_valid,
+            answer_correct=answer_correct,
+            evidence_valid=evidence_valid,
+            missing_answers=frozenset(missing),
+            extra_answers=frozenset(extra),
+            errors=tuple(errors),
+        )
+
+    @staticmethod
+    def _edge_set(evidence: list[Evidence], kind: EvidenceKind = EvidenceKind.EDGE) -> set[tuple]:
+        return {(e.src, e.relation, e.dst) for e in evidence if e.kind == kind}
+
+    def _answer_has_query_evidence(
+        self, query: Query, answer: int, evidence: list[Evidence]
+    ) -> bool:
+        edges = self._edge_set(evidence) | self._edge_set(evidence, EvidenceKind.ATTRIBUTE)
+        non_edges = self._edge_set(evidence, EvidenceKind.NON_EDGE)
+        rel = str(Relation.PRESYNAPTIC_TO)
+        if query.query_type == QueryType.ONE_HOP:
+            return (query.anchors[0], rel, answer) in edges
+        if query.query_type == QueryType.TWO_HOP:
+            return any(
+                src == query.anchors[0] and relation == rel and (middle, rel, answer) in edges
+                for src, relation, middle in edges
+            )
+        if query.query_type == QueryType.TWO_HOP_TYPE:
+            type_rel = query.semantic_relation or str(Relation.HAS_TYPE)
+            return (answer, type_rel, query.anchors[1]) in edges and any(
+                src == query.anchors[0] and relation == rel and (middle, rel, answer) in edges
+                for src, relation, middle in edges
+            )
+        if query.query_type == QueryType.INTERSECTION:
+            return all((anchor, rel, answer) in edges for anchor in query.anchors[:2])
+        if query.query_type == QueryType.INTERSECTION_NEGATION:
+            return (query.anchors[0], rel, answer) in edges and (
+                query.anchors[1],
+                rel,
+                answer,
+            ) in non_edges
+        if query.query_type == QueryType.INTERSECTION_TYPE:
+            type_rel = str(Relation.HAS_TYPE)
+            return any(
+                all((anchor, rel, neuron) in edges for anchor in query.anchors[:2])
+                and (neuron, type_rel, answer) in edges
+                for neuron in {edge[0] for edge in edges if edge[1] == type_rel}
+            )
+        return False

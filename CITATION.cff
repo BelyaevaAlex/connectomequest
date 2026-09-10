@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use this software or benchmark, please cite the accompanying paper."
+title: "ConnectomeQuest: Certificate-Carrying Interaction under Costly Partial Observation"
+type: software
+authors:
+  - family-names: "Anonymous"
+    given-names: "Authors"
+version: 0.1.0
+date-released: 2026-09-10
+license: Apache-2.0
+repository-code: "https://github.com/REPLACE-AFTER-DOUBLE-BLIND-REVIEW/connectomequest"

@@ -1,0 +1,335 @@
+#!/usr/bin/env python3
+"""Execution-matched attribution control on the sealed fresh-query block.
+
+This post-seal diagnostic executes only Weight-first/ID-free-second.  Every
+other policy row is read from the immutable fresh-contract V1 artifact.
+"""
+from __future__ import annotations
+
+import argparse
+import fcntl
+import json
+from pathlib import Path
+import sys
+import time
+from typing import Iterable
+
+import numpy as np
+import pyarrow as pa
+import pyarrow.parquet as pq
+import torch
+
+REPO = Path(__file__).resolve().parents[1]
+sys.path[:0] = [str(REPO), str(REPO / "scripts")]
+
+from connectomequest.agents.explorer import BudgetedExplorer
+from connectomequest.confirmatory_evaluation_v2 import load_cell_policy
+from connectomequest.confirmatory_v2 import DATASETS
+from connectomequest.env import ConnectomeEnv
+from connectomequest.evaluation import episode_metrics, metrics_as_dict
+from connectomequest.graph import GraphStore
+from connectomequest.manifest import sha256_file
+from connectomequest.policies.review_controls import WeightFirstLearnedSecond
+from connectomequest.query import Query, QueryType
+from nemo_strong.embodied_metrics import write_once
+
+
+FRESH_RELATIVE = Path("outputs/nemo/strong-accept/fresh-contract-test-v1")
+OUTPUT_RELATIVE = Path("outputs/nemo/strong-accept/fresh-attribution-v35")
+GRAPHS = ("h01", "manc", "hemibrain")
+SEEDS = (17, 29, 43)
+CONTROL = "weight_first_idfree_second"
+
+
+class AuditGraph(GraphStore):
+    """GraphStore with immutable relation-name caching for repeated episodes."""
+
+    @property
+    def relations(self):  # type: ignore[override]
+        cached = getattr(self, "_v35_relations", None)
+        if cached is None:
+            cached = super().relations
+            self._v35_relations = cached
+        return cached
+
+
+def _fresh(repo: Path) -> Path:
+    return repo / FRESH_RELATIVE
+
+
+def _output(repo: Path) -> Path:
+    return repo / OUTPUT_RELATIVE
+
+
+def load_sealed_queries(repo: Path, graph: str) -> list[Query]:
+    """Load the exact V1 fresh queries after validating their write-once seal."""
+
+    directory = _fresh(repo) / graph
+    query_path = directory / "QUERIES.json"
+    seal_path = directory / "QUERY-SEAL.json"
+    if not query_path.is_file() or not seal_path.is_file():
+        raise ValueError(f"query seal missing for {graph}")
+    seal = json.loads(seal_path.read_text())
+    if seal.get("sha256") != sha256_file(query_path):
+        raise ValueError(f"query seal digest mismatch for {graph}")
+    if seal.get("overlap_prior_pairs") != 0:
+        raise ValueError(f"query seal reports prior-pair overlap for {graph}")
+    payload = json.loads(query_path.read_text())
+    relation = "in_cortical_layer" if graph == "h01" else "has_type"
+    queries = [
+        Query(
+            str(row["query_id"]),
+            QueryType.TWO_HOP_TYPE,
+            tuple(int(value) for value in row["anchors"]),
+            frozenset(int(value) for value in row["answers"]),
+            "test",
+            relation,
+        )
+        for row in payload.get("queries", [])
+    ]
+    expected = json.loads((_fresh(repo) / "PROTOCOL.json").read_text())["n_per_graph"]
+    if len(queries) != expected or len({query.query_id for query in queries}) != expected:
+        raise ValueError(f"query seal cardinality mismatch for {graph}")
+    return queries
+
+
+def validate_original_rows(
+    rows: Iterable[dict], query_ids: set[str], seeds: Iterable[int] = SEEDS
+) -> dict[str, int]:
+    """Require one stored Gated row for every sealed query and action seed."""
+
+    expected_seeds = tuple(int(seed) for seed in seeds)
+    gate = [row for row in rows if row["method"] == "gate_v2"]
+    keys = [(int(row["seed"]), str(row["query_id"])) for row in gate]
+    expected = {(seed, query_id) for seed in expected_seeds for query_id in query_ids}
+    if len(keys) != len(expected) or set(keys) != expected:
+        raise ValueError("original Gated rows do not match sealed query-by-seed cells")
+    return {"gate_rows": len(gate), "query_ids": len(query_ids), "seeds": len(expected_seeds)}
+
+
+def build_protocol(repo: Path) -> dict:
+    """Return the complete prospective execution contract for this diagnostic."""
+
+    fresh = _fresh(repo)
+    original = json.loads((fresh / "PROTOCOL.json").read_text())
+    if original["n_per_graph"] != 1000 or original["seeds"] != list(SEEDS):
+        raise ValueError("fresh protocol cardinality or seeds changed")
+    graph_inputs = {}
+    for graph in GRAPHS:
+        queries = load_sealed_queries(repo, graph)
+        rows_path = fresh / graph / "rows.parquet"
+        rows = pq.read_table(rows_path).to_pylist()
+        validate_original_rows(rows, {query.query_id for query in queries})
+        graph_inputs[graph] = {
+            "queries_sha256": sha256_file(fresh / graph / "QUERIES.json"),
+            "query_seal_sha256": sha256_file(fresh / graph / "QUERY-SEAL.json"),
+            "original_rows_sha256": sha256_file(rows_path),
+            "original_aggregate_sha256": sha256_file(fresh / graph / "aggregate.json"),
+        }
+    sources = [
+        repo / "scripts/run_fresh_attribution_v35.py",
+        repo / "src/connectomequest/policies/review_controls.py",
+        repo / "src/connectomequest/agents/explorer.py",
+        repo / "src/connectomequest/env.py",
+        repo / "src/connectomequest/proof.py",
+    ]
+    return {
+        "status": "post-seal attribution diagnostic; not confirmatory",
+        "source_fresh_protocol_sha256": sha256_file(fresh / "PROTOCOL.json"),
+        "graphs": list(GRAPHS),
+        "seeds": list(SEEDS),
+        "queries_per_graph": 1000,
+        "new_queries": 0,
+        "rerun_methods": [CONTROL],
+        "reused_methods": ["gate_v2", "weight"],
+        "new_policy_executions": len(GRAPHS) * len(SEEDS) * 1000,
+        "controller": "zero_probe_full_frontier",
+        "V": 32,
+        "B": 64,
+        "H": 64,
+        "probes": 0,
+        "candidate_cap": 4,
+        "bootstrap": {"unit": "query", "samples": 5000, "seed": 172903},
+        "graph_inputs": graph_inputs,
+        "source_sha256": {
+            str(path.relative_to(repo)): sha256_file(path) for path in sources
+        },
+    }
+
+
+def _method_summary(rows: list[dict]) -> dict[str, float | int]:
+    return {
+        "episodes": len(rows),
+        "success": float(np.mean([float(row["goal_success"]) for row in rows])),
+        "charged_actions": float(np.mean([float(row["budget_used"]) for row in rows])),
+    }
+
+
+def _query_means(rows: list[dict], method: str, key: str) -> dict[str, float]:
+    values: dict[str, list[float]] = {}
+    for row in rows:
+        if row["method"] == method:
+            values.setdefault(str(row["query_id"]), []).append(float(row[key]))
+    return {query_id: float(np.mean(samples)) for query_id, samples in values.items()}
+
+
+def _paired(
+    rows: list[dict], left: str, right: str, *, key: str, samples: int, seed: int
+) -> dict:
+    lhs = _query_means(rows, left, key)
+    rhs = _query_means(rows, right, key)
+    if set(lhs) != set(rhs) or not lhs:
+        raise ValueError(f"unaligned paired contrast: {right} minus {left}")
+    query_ids = sorted(lhs)
+    differences = np.asarray([rhs[q] - lhs[q] for q in query_ids], dtype=float)
+    rng = np.random.default_rng(seed)
+    bootstrap = np.asarray(
+        [float(np.mean(rng.choice(differences, len(differences)))) for _ in range(samples)]
+    )
+    return {
+        "contrast": f"{right} minus {left}",
+        "metric": key,
+        "query_units": len(query_ids),
+        "difference": float(np.mean(differences)),
+        "ci95": [float(value) for value in np.quantile(bootstrap, (0.025, 0.975))],
+    }
+
+
+def aggregate_control(
+    original_rows: Iterable[dict],
+    control_rows: Iterable[dict],
+    *,
+    bootstrap_samples: int = 5000,
+) -> dict:
+    """Aggregate stored policies and the new control without claiming a rerun."""
+
+    original = list(original_rows)
+    control = list(control_rows)
+    if any(row["method"] != CONTROL for row in control):
+        raise ValueError("control artifact contains an unexpected method")
+    rows = original + control
+    methods = sorted({str(row["method"]) for row in rows})
+    summary = {method: _method_summary([row for row in rows if row["method"] == method])
+               for method in methods}
+    contrasts = {}
+    if {"gate_v2", CONTROL}.issubset(methods):
+        for key in ("goal_success", "budget_used"):
+            contrasts[f"gate_vs_control_{key}"] = _paired(
+                rows, CONTROL, "gate_v2", key=key, samples=bootstrap_samples, seed=172903
+            )
+    if {"weight", CONTROL}.issubset(methods):
+        for key in ("goal_success", "budget_used"):
+            contrasts[f"control_vs_weight_{key}"] = _paired(
+                rows, "weight", CONTROL, key=key, samples=bootstrap_samples, seed=172904
+            )
+    return {
+        "original_rows_reused": True,
+        "gate_executions": 0,
+        "control_executions": len(control),
+        "summary": summary,
+        "contrasts": contrasts,
+    }
+
+
+def evaluate_control(repo: Path, graph_name: str, seed: int, queries: list[Query]) -> list[dict]:
+    graph = AuditGraph(repo / "data/processed" / DATASETS[graph_name])
+    gate, _ = load_cell_policy(
+        repo,
+        {"held_out": graph_name, "seed": seed, "method": "gate_v2"},
+        torch.device("cpu"),
+    )
+    policy = WeightFirstLearnedSecond(gate.experts[gate.second_hop_expert])
+    explorer = BudgetedExplorer(
+        policy=policy,
+        ranking="policy",
+        seed=seed,
+        subgoal_probes=0,
+        candidates_per_subgoal=4,
+    )
+    rows = []
+    for query in queries:
+        env = ConnectomeEnv(
+            graph, visible_neighbors=32, max_steps=64, budget=64,
+            enforce_proof=True, answer_quota=1,
+        )
+        env.reset(query)
+        rows.append({"method": CONTROL, "seed": seed,
+                     **metrics_as_dict(episode_metrics(query, explorer.run(env, query.spec)))})
+    return rows
+
+
+def seal(repo: Path) -> None:
+    protocol = build_protocol(repo)
+    write_once(_output(repo) / "PROTOCOL.json", protocol)
+    print(json.dumps({"status": "sealed", "new_policy_executions": 9000}))
+
+
+def run_graph(repo: Path, graph_name: str) -> None:
+    root = _output(repo)
+    protocol_path = root / "PROTOCOL.json"
+    if not protocol_path.is_file():
+        raise RuntimeError("seal V35 before execution")
+    protocol = json.loads(protocol_path.read_text())
+    current = build_protocol(repo)
+    if current != protocol:
+        raise RuntimeError("V35 input or source drift after sealing")
+    directory = root / graph_name
+    directory.mkdir(parents=True, exist_ok=True)
+    with (directory / "RUN.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        result_path = directory / "aggregate.json"
+        rows_path = directory / "control_rows.parquet"
+        if result_path.exists():
+            result = json.loads(result_path.read_text())
+            if result["control_rows_sha256"] != sha256_file(rows_path):
+                raise RuntimeError("completed V35 row hash mismatch")
+            print(json.dumps({"status": "reused", "graph": graph_name}))
+            return
+        queries = load_sealed_queries(repo, graph_name)
+        started = time.monotonic()
+        control_rows = []
+        for seed in SEEDS:
+            control_rows.extend(evaluate_control(repo, graph_name, seed, queries))
+            print(json.dumps({"graph": graph_name, "seed": seed,
+                              "rows": len(control_rows),
+                              "elapsed_seconds": round(time.monotonic() - started, 2)}), flush=True)
+        if len(control_rows) != 3000:
+            raise AssertionError("V35 graph must contain exactly 3,000 new executions")
+        temporary = rows_path.with_suffix(".parquet.tmp")
+        pq.write_table(pa.Table.from_pylist(control_rows), temporary, compression="zstd")
+        temporary.replace(rows_path)
+        original_path = _fresh(repo) / graph_name / "rows.parquet"
+        original_rows = pq.read_table(original_path).to_pylist()
+        result = aggregate_control(original_rows, control_rows)
+        result.update({
+            "graph": graph_name,
+            "protocol_sha256": sha256_file(protocol_path),
+            "original_rows_sha256": sha256_file(original_path),
+            "control_rows_sha256": sha256_file(rows_path),
+            "wall_seconds": time.monotonic() - started,
+        })
+        write_once(result_path, result)
+        print(json.dumps({"status": "complete", "graph": graph_name,
+                          "summary": result["summary"],
+                          "wall_seconds": result["wall_seconds"]}), flush=True)
+
+
+def main() -> None:
+    pa.set_cpu_count(1)
+    pa.set_io_thread_count(1)
+    torch.set_num_threads(1)
+    torch.set_num_interop_threads(1)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--seal", action="store_true")
+    parser.add_argument("--graph", choices=GRAPHS)
+    args = parser.parse_args()
+    if args.seal:
+        seal(REPO)
+    elif args.graph:
+        run_graph(REPO, args.graph)
+    else:
+        parser.error("choose --seal or --graph")
+
+
+if __name__ == "__main__":
+    main()

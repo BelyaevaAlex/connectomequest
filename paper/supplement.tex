@@ -1,0 +1,402 @@
+\documentclass{article}
+
+\PassOptionsToPackage{numbers,sort&compress}{natbib}
+\usepackage[dblblindworkshop]{neurips_2026}
+\workshoptitle{NEmo 2026: Neuro-Symbolic Embodied Intelligence}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{amsthm}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+\usepackage{multirow}
+\usepackage{placeins}
+\usepackage{hyperref}
+\hypersetup{hidelinks}
+\usepackage{url}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit}
+
+\newcommand{\method}{\textsc{ConnectomeQuest}}
+\newcommand{\task}{\textsc{TwoHopSemantic}}
+\newcommand{\success}{\mathrm{Success}(64)}
+\newcommand{\presyn}{\mathtt{presynaptic\_to}}
+\newcommand{\native}{\rho_d}
+\newcommand{\Vis}{\operatorname{Vis}}
+\newcommand{\Legal}{\Gamma}
+\newcommand{\Accept}{\operatorname{Accept}}
+\input{generated/certificate_numbers}
+\input{generated/revalidation_numbers}
+
+\title{Supplementary Material: ConnectomeQuest: Certificate-Carrying Interaction under Costly Partial Observation}
+\author{Anonymous Authors}
+
+\begin{document}
+\maketitle
+\appendix
+
+\section*{Guide to the supplementary material}
+
+The supplement follows the claim order of the main paper: formal details,
+dataset and access provenance, policy and inference details, graph diagnostics,
+certificate-integrity tests, RGB validation, and reproduction.
+
+\renewcommand{\thesection}{C\arabic{section}}
+\renewcommand{\theHsection}{core.\arabic{section}}
+
+\section{Formal details}
+\label{app:formal-foundations}
+
+For a fixed random tape, the closed-loop trajectory is
+\[
+ \mathcal T=(s_0,z_0,o_0,a_0,s_1,z_1,o_1,\ldots,a_{L-1},s_L,z_L,o_L).
+\]
+It is replay-valid when each observation equals the declared observation map,
+each state pair satisfies the controller and environment updates, and recorded
+costs and outcomes match replay. Replay validity is distinct from action
+admissibility: a charged API rejection can be replay-valid.
+
+After anchor inspection, let $M(o)$ be the disclosed middle-node set. For the
+fixed controller, let $U_q(o)\subseteq M(o)$ contain the middle nodes from which
+an accepted certificate remains affordable. If
+$(m_1,\ldots,m_J)$ is the sequence of distinct branch openings, the
+first-acquired-certificate reciprocal rank is $1/j$ for the least $j$ whose
+branch yields an accepted certificate, and zero if no branch does. Its sample
+mean is the first-acquired-certificate MRR. This execution metric is distinct
+from relevance of a candidate before execution.
+
+
+\subsection{Dependency-indexed validation: proofs}
+\label{app:receipt-proofs}
+
+\paragraph{Proof of Proposition 2.}
+Fix a suffix position $i$ whose support value changes. Interpolate from
+$(A_t,\theta_t)$ to $(A_{t+1},\theta_{t+1})$ by changing one coordinate from
+$W_t\cup N_t$ at a time. Because the endpoint support values differ, at least
+one single-coordinate step changes $\operatorname{Supp}_i$. Receipt completeness
+places that coordinate in $D_i\cap W_t$ when it is a receipt. When it is a
+semantic key, the support predicate reads that key, and key completeness places
+it in $K_i\cap N_t$. Independently, every changed key read by the planner for
+step $i$ is in $K_i\cap N_t$. The corresponding exact posting list therefore
+contains $i$, so $i\in\mathcal J(\Delta_t)$.
+Revalidating all
+positions in this set therefore includes every changed support decision.  In
+particular, if the next checked action loses its final active support, its
+position is revalidated and the authorization rule rejects it.  The reasoning
+uses issuer-relative receipt activity and makes no claim about unmodelled
+physical preconditions. \hfill$\square$
+
+\paragraph{Proof of Proposition 3.}
+Complete validation evaluates the entire post-update support vector. By
+Proposition 2, dependency-indexed validation evaluates every coordinate that
+can have changed; all others retain their exact cached values. Thus both obtain
+the same support vector. Exact inverse maps also make them agree whether
+$N_t\cap\bigcup_i K_i$ is empty. Applying the same retain-or-replan rule, they
+either retain the same suffix or invoke the same deterministic planner from the
+same state. Their next authorization decisions are therefore equal.
+\hfill$\square$
+
+\paragraph{Proof of Corollary 1.}
+Constructing the two inverse maps enumerates each of the $Z$ recorded
+dependencies once.  For update $t$, expected-constant-time dictionary access
+contributes one lookup per member of $W_t\cup N_t$, and enumerating the retrieved
+posting lists contributes one operation per stored entry in the displayed
+sums.  Summing construction and update terms gives the bound.  Complete
+validation visits every remaining suffix position by definition.  Neither
+count includes predicate evaluation, index maintenance, or a planner call;
+those quantities are measured separately. \hfill$\square$
+
+
+
+\subsection{Access-matched full-episode revalidation}
+\label{app:full-episode-algorithm}
+
+\begin{figure}[t]
+\centering
+\fbox{\begin{minipage}{0.94\linewidth}
+\small
+\textbf{Inputs.} All methods receive the same remaining plan, complete
+receipt and semantic-key dependency records, active receipt identifiers,
+claim-to-receipt bindings, and one evidence update.  The update contains
+withdrawn receipt identifiers, superseded receipt identifiers, changed semantic
+keys, and added claim bindings.
+
+\medskip
+\textbf{Full replanning.} On every nonempty evidence update, discard the remaining
+plan and call the common deterministic planner.
+
+\textbf{Complete validation.} On a nonempty update, visit every remaining plan position
+and evaluate its required claims. Call the common planner if any required claim
+lacks active receipt support or if the changed-key set intersects the union of
+the recorded planner-read semantic keys; otherwise retain the plan.
+
+\textbf{Dependency-indexed validation.} Look up the posting lists of every withdrawn or
+superseded receipt identifier and every changed semantic key. Check only the
+retrieved remaining positions. Call the common planner if a retrieved required
+claim lacks active receipt support or a changed key has a retrieved
+planner-read posting; otherwise retain the plan.
+
+\textbf{Unchecked reuse.} Continue the cached plan; it never checks or replans
+after an evidence update.  This is a safety ablation, not a competent baseline.
+
+\medskip
+\textbf{Accounting.} Record predicate evaluations, successor expansions,
+plan-position visits, index lookups, posting-list entries, planner calls,
+revalidation time, and planning time separately. Index construction is timed
+and included in validation-and-replanning CPU time.
+\end{minipage}}
+\caption{The four access-matched revalidation procedures. Hashing and serialization are
+integrity instrumentation rather than decision steps.}
+\label{alg:full-episode-revalidation}
+\end{figure}
+
+
+
+\section{Data and access provenance}
+\label{app:data-contract}
+
+\begin{table}[h]
+\caption{Source assets and access metadata recorded in release manifests.}
+\label{tab:asset-licenses}
+\centering\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{llll}
+\toprule
+Asset & Version/configuration & Access source & License/terms \\
+\midrule
+H01 C3 & 20210729-c3 & Google Cloud public release & CC-BY-4.0 \\
+MANC & 1.0 / male-cns:1.0 & Janelia FlyEM files / neuPrint & CC-BY \\
+HemiBrain & 1.2.1 / hemibrain:1.2.1 & neuPrint & CC-BY-4.0 \\
+MiniGrid/BabyAI & recorded package versions & Python dependencies & upstream licenses \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\begin{table}[h]
+\caption{Versioned active-environment snapshots. Edge columns are disjoint:
+task semantic is the native query predicate; other semantic contains every
+remaining semantic edge; total is their sum with both wiring directions. Of
+34,499 H01 neuron nodes, 33,752 have an official cortical-layer label; the
+remaining 747 are valid wiring nodes but cannot support the native semantic
+required claim.}
+\label{tab:data-supp}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lrrrrrrr}
+\toprule
+Graph & neurons & nodes & wiring & inverse & task sem. & other sem. & total \\
+\midrule
+H01 C3/20210729 & 34,499 & 34,506 & 232,211 & 232,211 & 33,752 & 0 & 498,174 \\
+MANC v1.0 & 22,744 & 26,637 & 3,874,922 & 3,874,922 & 22,744 & 0 & 7,772,588 \\
+HemiBrain v1.2.1 & 21,739 & 35,211 & 3,550,061 & 3,550,061 & 19,723 & 260,810 & 7,380,655 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+Only compact neuron-level connectivity and released annotations are retained.
+Raw EM imagery, meshes, skeletons, and per-synapse point tables are excluded.
+HemiBrain access uses a user-supplied credential that is never stored in an
+artifact. Source versions, URLs, filters, licenses, and file hashes are recorded
+in manifests. H01 is a small tissue sample and is not representative of human
+cortex generally; fly and human labels are not asserted to be homologous.
+
+The primary task is typed two-hop witness search. \textsc{CheckEdge} may test a
+semantic edge only at the current focus after an acquired two-hop wiring path
+reaches that focus; it is therefore not an arbitrary membership oracle. For
+negated auxiliary queries, the environment may issue an explicit negative
+receipt against the immutable graph. Absence from a bounded page is never
+treated as evidence of non-existence.
+
+\section{Policies and statistical procedure}
+\label{app:policy-details}
+
+The Attribute scorer has two hop-specific multilayer-perceptron heads of width 128,
+dropout 0.1, and 31 observable input coordinates. The coordinates comprise
+acquired count and weight summaries, relation and equality indicators, budget
+and frontier state, within-list order, and purchased-probe summaries. Numeric
+entity identifiers and entity embeddings are excluded. Training uses source
+graphs only, 20 epochs, AdamW, learning rate $3\times10^{-4}$, and
+domain--hop-balanced sampling. The exact coordinate transforms and normalizations are provided in the released
+configuration.
+
+\begin{table}[h]
+\caption{Attribute-scorer feature groups. Numeric entity identifiers are not
+feature values; numeric tie-breaking can still affect rank-derived inputs and
+top-$V$. The paid-observation flag occurs in both network branches,
+so 31 coordinates represent 30 distinct scalars.}
+\label{tab:features}
+\centering\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lrp{0.60\linewidth}}
+\toprule
+Group & Count & Observable quantities \\
+\midrule
+Acquired evidence & 6 & log degree counts; incoming-weight sum and maximum; positive-edge fraction; log negative-receipt count \\
+Equality and relation & 8 & current-node, memory, anchor, endpoint, and semantic-match indicators \\
+Budget, frontier, order & 7 & budget and step fractions; frontier flag; local weight and fraction; reverse rank; top-four flag \\
+Paid-observation flag & 1 & availability copied to the base network branch \\
+Paid-observation summaries & 9 & the same availability gate plus percentile and robust-$z$ transforms of four acquired statistics \\
+\midrule
+Total & 31 & coordinates representing 30 distinct scalars \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The Recurrent policy uses the same 31 candidate features, a
+128-dimensional recurrent state, dropout 0.1, and a 32-dimensional query-family
+embedding that contains neither entity nor target identity. Its state resets at
+each ranking call. REINFORCE training uses source-graph decision records for 25
+epochs and 16,000 trajectories per epoch, with entropy weight 0.01. Evaluation
+always uses the common controller and verifier.
+
+Expert selector is a one-hidden-layer, 32-unit SiLU classifier that chooses
+among Weight, Random, Attribute, Recurrent, and a diversity ordering using
+only pre-action source-graph features. It is trained for 100 epochs with AdamW,
+batch size 128, learning rate $10^{-3}$, and weight decay $10^{-4}$; a held-out
+source split fixes its confidence threshold. Attribution in
+Table~\ref{tab:hop-attribution} prevents this optional component from being
+mistaken for the interaction interface.
+
+The first anchor is the uncertainty cluster. Paired comparisons align query
+identifiers, average fixed-seed outcomes within query, and resample first-anchor
+clusters while retaining all queries in each sampled cluster. Intervals
+condition on fixed checkpoints, seeds, controller, and query set. The two
+planned fly-graph contrasts use a Bonferroni correction; all other audits are
+explicitly exploratory.
+
+\section{Graph results and diagnostics}
+\label{app:graph-diagnostics}
+
+\input{generated/graph_results}
+\input{generated/cluster_intervals}
+\input{generated/graph_costs}
+\input{generated/hop_attribution}
+
+The visible-witness ceiling uses privileged answer knowledge only to verify
+that a generated query contains an affordable witness in the disclosed pages.
+It is not an observable competitor.
+\input{generated/visible_witness_ceiling}
+
+The coarsening intervention replaces only the native semantic target by one of
+seven fixed, frequency-balanced target unions. Wiring, anchor, pairing identifier,
+policy checkpoint, and random seed remain fixed. These are controlled benchmark
+labels, not biological equivalence classes. Visible target prevalence is the
+mean query-wise fraction of relevant nodes among first-page two-hop candidates
+and is never exposed to a policy.
+\input{generated/semantic_coarsening_details}
+
+\section{Certificate-integrity audit}
+\label{app:verifier-audit}
+
+The verifier receives an untrusted certificate and a separately trusted query,
+graph/episode identity, current step, and issuance registry. It validates
+receipt bindings and graph-witness entailment without loading an answer set.
+Trusting a claimant-supplied registry would invalidate the guarantee.
+
+The replay audit contains \VerifierReplayEpisodes{} graph-search episodes from
+four policies and three graphs. Every one of its
+\VerifierReplayCertificates{} nonempty submissions is accepted; the remaining
+submissions are empty and hence contain no certificate to verify. A separate
+mutation diagnostic fixes 300 queries per graph and retains all 1,800 search
+episodes, including failures; only acquired certificates enter its mutation
+tests. Provenance/binding mutations remove receipts or alter episode, graph,
+query, or relation bindings. Structural mutations splice inconsistent middle
+nodes, answers, and semantic edges. These two cohorts are not pooled.
+
+\input{generated/certificate_mutations}
+
+These deterministic rejection counts measure coverage of the stated mutation
+generator. Because mutations derived from the same acquired certificate are
+correlated and were not sampled from a probability model, we report no
+binomial confidence bound or attack-success estimate. Certificate soundness
+remains conditional on the trusted issuer and registry.
+
+\section{RGB retained-plan validation}
+\label{app:rgb-audit}
+
+The RGB study attempted 800 layouts, 200 in each of four requested
+remaining-plan-length strata. Eligibility was decided before any compared
+method ran: the layout generator had to succeed; the common RGB exploration
+controller had to reach a nonterminal staging state; the common planner had to
+return a complete mission plan in the requested stratum; the requested update
+schedule had to be constructible; and instrumentation had to finish without an
+exception. This method-independent rule retained 513 layouts. Four methods,
+three update seeds, and six schedule conditions produced 12,312 method--condition
+rows and 3,078 complete paired cells. Panel~A contains 381 eligible
+layout--update--schedule cells from the long and very-long strata with one or
+two withdrawals and at least 80\% irrelevant updates; Panel~B contains one
+final-support-loss cell for each of the 513 retained layouts. These cohorts
+answer different questions and are not compared across panels. All methods
+share the planner, action model, pre-update trajectory, RGB-derived belief, and
+update schedule. Access hashes agree and every stored environment trace replays
+exactly.
+
+Each public observation contains an egocentric $7\times7$ RGB image rendered
+at $8\times8$ pixels per tile, position relative to the episode start, exact
+cardinal direction, inventory object type, mission string, and the previous
+action acknowledgement, reward, and termination flag. Thus localization and
+heading are privileged public inputs; the study does not test visual odometry.
+The frozen 21,147-parameter tile classifier has two $3\times3$ convolutional
+layers (32 and 64 channels, SiLU activations), global average pooling, and a
+27-class linear head. It was trained for 20 epochs on 4,548 renderer tiles with
+cross-entropy and AdamW (learning rate $3\times10^{-3}$, weight decay
+$10^{-4}$, batch size 256, seed 17); accuracy on 1,707 held-out collected tiles
+was 0.9947. The checkpoint SHA-256 begins
+\texttt{092ea8aeef264421}. Training and evaluation use the same renderer, so
+we make no visual-domain-generalization claim. The classifier initializes
+semantic-map claims and their image-receipt bindings. The later receipt
+withdrawals are controlled protocol interventions shared by all methods, not
+learned detections of perception errors.
+
+\input{generated/embodied_results}
+
+Primitive work reports predicate evaluations, planner-successor expansions,
+retained-plan positions, and index lookups separately; no arbitrary conversion
+factor is imposed. The prospectively frozen timing confirmation contains
+\AmortizedEligible{} eligible layouts and \AmortizedPairedCells{} primary paired
+cells. Its primary population requires at least 64 remaining actions and four
+or eight distinct irrelevant receipt withdrawals. Dependency-indexed and
+complete validation agree on \AmortizedAgreement{} of authorization decisions;
+the former reduces validation-and-replanning CPU time by
+\AmortizedReduction{} (layout-bootstrap 95\% interval
+[\AmortizedReductionLow{}, \AmortizedReductionHigh{}]) and measured
+plan-position-plus-predicate work by \AmortizedWorkReduction{}. This endpoint
+is the sum of index construction, index maintenance, required-claim validation,
+and planner calls; it excludes CNN inference, simulator stepping, serialization,
+and action execution. Across the 221 eligible layouts (median remaining-plan
+length 81), complete versus dependency-indexed median times were
+7.036 versus 0.967 ms for one withdrawal, 28.220 versus 1.084 ms for four, and
+60.611 versus 1.211 ms for eight. Measurements used one pinned logical CPU on
+an AMD EPYC 7763 host under Linux x86-64, with
+\texttt{OMP\_NUM\_THREADS=MKL\_NUM\_THREADS=OPENBLAS\_NUM\_THREADS=1},
+cyclic method order, ten warmups, and forty retained repetitions per cell.
+The confirmation attempted 256 very-long layouts and retained 221; 32 exceeded
+the prospective 180-s enrollment timeout and three fell outside the requested
+length stratum. Inference resamples layouts while retaining their update
+conditions and timing seeds.
+
+\section{Reproduction}
+
+The anonymous artifact contains processed graph snapshots, anonymized
+checkpoints, executable source, frozen protocols, aggregate table inputs, all
+timing-confirmation records, and representative full-episode replay records.
+Its verifier checks a SHA-256 manifest and runs the included focused tests.
+The manuscript finalizer independently checks protocol/source hashes,
+regenerates every cited table and figure from the local complete records, runs
+the full test suite, and builds both PDFs. To keep the review artifact compact,
+it omits the complete 865 MB full-episode trace directory; the aggregate report,
+eligibility record, protocol, and representative replay cases are included.
+Thus the artifact supports integrity checking and evaluation replay, not
+complete retraining or reconstruction of every raw RGB trace.
+
+
+
+\end{document}

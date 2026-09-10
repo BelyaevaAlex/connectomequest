@@ -1,0 +1,15 @@
+\begin{table}[h]
+\centering\scriptsize
+\setlength{\tabcolsep}{3pt}
+\caption{Prospectively frozen evaluation on 1,000 previously unused query pairs per graph. Entries are certificate success/unconditional charged actions, averaged across seeds 17/29/43 for stochastic policies; Weight is deterministic. All policies use the same frozen controller and observations.}
+\label{tab:fresh-test}
+\begin{tabular}{lrrrrrr}
+\toprule
+Graph & Weight & Random & Recurrent & Attribute & Expert selector & Random$\to$Attribute \\
+\midrule
+H01 & 0.4090/42.63 & 0.5100/39.82 & 0.4840/40.64 & 0.4117/41.27 & 0.3920/43.14 & 0.4017/42.05 \\
+MANC & 0.0990/60.18 & 0.1050/60.11 & 0.1030/60.01 & 0.1107/59.96 & 0.1120/60.03 & 0.1003/60.19 \\
+HemiBrain & 0.1270/59.52 & 0.1347/59.23 & 0.1437/58.86 & 0.1343/58.91 & 0.1483/58.83 & 0.1367/58.86 \\
+\bottomrule
+\end{tabular}
+\end{table}

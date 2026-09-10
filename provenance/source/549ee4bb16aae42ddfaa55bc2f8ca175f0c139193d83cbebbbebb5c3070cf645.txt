@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+"""Prospectively fixed new-query replication of the now-selected controller.
+
+No fitting, threshold changes or method selection are performed. Exclusion of
+previous query pairs changes the sampling population and is disclosed explicitly.
+"""
+import argparse
+import fcntl
+import hashlib
+import json
+from pathlib import Path
+import sys
+import time
+import numpy as np
+import pyarrow as pa
+import pyarrow.parquet as pq
+import torch
+
+REPO=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(REPO/'scripts'));sys.path.insert(0,str(REPO))
+from run_contract_audit_v2 import AuditGraph, METHODS, labels, visible
+from run_strong_accept_controller_variant import FirstHopRandomSecondHopSnapshotPolicy
+from connectomequest.confirmatory_v2 import DATASETS
+from connectomequest.confirmatory_evaluation_v2 import load_cell_policy, _checkpoint_paths
+from connectomequest.policies.expert_gate_v2 import ObservableRandomPolicy
+from connectomequest.agents.explorer import BudgetedExplorer
+from connectomequest.env import ConnectomeEnv
+from connectomequest.query import Query, QueryType, entity_split
+from connectomequest.evaluation import episode_metrics, metrics_as_dict
+from connectomequest.manifest import sha256_file
+from nemo_strong.embodied_metrics import write_once
+
+ROOT=REPO/'outputs/nemo/strong-accept/fresh-contract-test-v1'
+
+
+def seal():
+    ROOT.mkdir(parents=True,exist_ok=True)
+    files=[Path(__file__),REPO/'scripts/run_contract_audit_v2.py',REPO/'src/connectomequest/env.py',
+           REPO/'src/connectomequest/agents/explorer.py']
+    prior={}
+    for graph,bundle in DATASETS.items():
+        candidates=list((REPO/'data/processed'/bundle).glob('queries*.parquet'))
+        candidates += [p for p in (REPO/'outputs/nemo').rglob('queries*.parquet')
+                       if graph in str(p.relative_to(REPO)).lower() and 'coarse' not in str(p)
+                       and 'fresh-contract-test-v1' not in str(p)]
+        prior[graph]={str(p.relative_to(REPO)):sha256_file(p) for p in sorted(set(candidates))}
+        files.append(REPO/'data/processed'/bundle/'manifest.json')
+        for seed in (17,29,43):files.extend(_checkpoint_paths(REPO,graph,seed).values())
+    cfg={'status':'prospective new-pair replication after method development, not preregistration',
+         'n_per_graph':1000,'query_seed':2026090507,'anchor_split_seed':314159,
+         'V':32,'B':64,'H':64,'probes':0,'candidate_cap':4,'seeds':[17,29,43],
+         'methods':list(METHODS),'primary_contrasts':['gate_v2-weight:manc','gate_v2-weight:hemibrain'],
+         'CI':'paired query bootstrap, 5000 resamples, seed 172903; Bonferroni two planned contrasts',
+         'sampling':'uniform old-test-pool anchor, uniform first-page middle, uniform typed first-page answer; reject prior pairs and duplicates',
+         'prior_query_files':prior,'inputs':{str(p.relative_to(REPO)):sha256_file(p) for p in sorted(set(files))}}
+    write_once(ROOT/'PROTOCOL.json',cfg);print('sealed before sampling/evaluation',flush=True)
+
+
+def run(graph_name):
+    cfg=json.loads((ROOT/'PROTOCOL.json').read_text())
+    for name,digest in cfg['inputs'].items():assert sha256_file(REPO/name)==digest
+    out=ROOT/graph_name;out.mkdir(exist_ok=True)
+    with (out/'RUN.lock').open('w') as lock:
+        fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        if (out/'aggregate.json').exists():
+            r=json.loads((out/'aggregate.json').read_text());assert r['rows_sha256']==sha256_file(out/'rows.parquet')
+            print('completed result reused');return
+        g=AuditGraph(REPO/'data/processed'/DATASETS[graph_name])
+        native='in_cortical_layer' if graph_name=='h01' else 'has_type';types=labels(g,native)
+        excluded=set()
+        for name,digest in cfg['prior_query_files'][graph_name].items():
+            path=REPO/name;assert sha256_file(path)==digest
+            for r in pq.read_table(path,columns=['query_type','anchors']).to_pylist():
+                if r['query_type']=='2pt':excluded.add(tuple(r['anchors']))
+        nodes=g.nodes().to_pylist()
+        pool=[int(n['node_id']) for n in nodes if n['node_type']=='neuron' and entity_split(int(n['node_id']),314159)=='test']
+        rng=np.random.default_rng(cfg['query_seed']);cache={};reach={};seen=set();queries=[]
+        def page(node):
+            if node not in cache:cache[node]=sorted(visible(g,node))
+            return cache[node]
+        for attempt in range(500000):
+            a=int(rng.choice(pool));first=page(a)
+            if not first:continue
+            m=int(rng.choice(first));second=[x for x in page(m) if x in types]
+            if not second:continue
+            y=types[int(rng.choice(second))];pair=(a,y)
+            if pair in excluded or pair in seen:continue
+            if a not in reach:
+                reach[a]=set().union(*(set(g.neighbors(int(n),'presynaptic_to',by_weight=False).node_ids.tolist())
+                    for n in g.neighbors(a,'presynaptic_to',by_weight=False).node_ids))
+            answers=frozenset(x for x in reach[a] if types.get(x)==y)
+            qid=hashlib.sha256(f'fresh-contract-v1:{graph_name}:{a}:{y}'.encode()).hexdigest()[:24]
+            queries.append(Query(qid,QueryType.TWO_HOP_TYPE,pair,answers,'test',native));seen.add(pair)
+            if len(queries)==cfg['n_per_graph']:break
+        assert len(queries)==cfg['n_per_graph'],'insufficient new pairs; do not change sampling after opening results'
+        query_records=[{'query_id':q.query_id,'anchors':list(q.anchors),'answers':sorted(q.answers)} for q in queries]
+        write_once(out/'QUERIES.json',{'excluded_pairs':len(excluded),'queries':query_records})
+        write_once(out/'QUERY-SEAL.json',{'sha256':sha256_file(out/'QUERIES.json'),'overlap_prior_pairs':0})
+        rows=[];start=time.monotonic()
+        for method in METHODS:
+            for seed in ([17] if method=='weight' else cfg['seeds']):
+                policy,_=load_cell_policy(REPO,{'held_out':graph_name,'seed':seed,
+                    'method':'snapshot_v2' if method=='random_snapshot_v2' else method},torch.device('cpu'))
+                if method=='random_snapshot_v2':policy=FirstHopRandomSecondHopSnapshotPolicy(ObservableRandomPolicy(seed),policy)
+                for q in queries:
+                    env=ConnectomeEnv(g,visible_neighbors=32,budget=64,max_steps=64,answer_quota=1)
+                    env.reset(q)
+                    ep=BudgetedExplorer(policy=policy,ranking='policy',seed=seed,subgoal_probes=0,candidates_per_subgoal=4).run(env,q.spec)
+                    rows.append({'method':method,'seed':seed,**metrics_as_dict(episode_metrics(q,ep))})
+                print(json.dumps({'graph':graph_name,'method':method,'seed':seed,'seconds':time.monotonic()-start}),flush=True)
+        pq.write_table(pa.Table.from_pylist(rows),out/'rows.parquet',compression='zstd')
+        summary={m:float(np.mean([r['goal_success'] for r in rows if r['method']==m])) for m in METHODS}
+        write_once(out/'aggregate.json',{'summary':summary,'rows_sha256':sha256_file(out/'rows.parquet'),
+                   'query_sha256':sha256_file(out/'QUERIES.json'),'protocol_sha256':sha256_file(ROOT/'PROTOCOL.json')})
+        print(json.dumps({'complete':graph_name,'summary':summary}),flush=True)
+
+
+if __name__=='__main__':
+    pa.set_cpu_count(1);pa.set_io_thread_count(1);torch.set_num_threads(1);torch.set_num_interop_threads(1)
+    p=argparse.ArgumentParser();p.add_argument('--seal',action='store_true');p.add_argument('--graph',choices=DATASETS)
+    a=p.parse_args()
+    if a.seal:seal()
+    else:run(a.graph)

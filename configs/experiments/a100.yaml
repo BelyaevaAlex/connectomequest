@@ -1,0 +1,19 @@
+seed: 17
+device: cuda
+precision: bf16
+compile: false
+embedding_dim: 256
+batch_queries: 512
+epochs: 10
+learning_rate: 0.001
+negatives_per_positive: 32
+hard_negative_fraction: 0.75
+frontier_negatives_per_query: 8
+frontier_loss_weight: 1.0
+semantic_visible_neighbors: 32
+candidate_chunk_size: 65536
+cpu_threads_per_process: 8
+distributed:
+  enabled: false
+  world_size: 1
+parallelism: one_independent_seed_per_gpu

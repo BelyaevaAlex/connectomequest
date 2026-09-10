@@ -1,0 +1,13 @@
+name: manc
+version: "v1.0"
+neuprint_dataset: "male-cns:v1.0"
+server: "https://neuprint.janelia.org"
+license: "CC-BY"
+files:
+  annotations:
+    url: "https://storage.googleapis.com/flyem-male-cns/v1.0/connectome-data/flat-connectome/body-annotations-male-cns-v1.0-minconf-0.5.feather"
+    filename: "body-annotations-male-cns-v1.0-minconf-0.5.feather"
+  connections:
+    url: "https://storage.googleapis.com/flyem-male-cns/v1.0/connectome-data/flat-connectome/connectome-weights-male-cns-v1.0-minconf-0.5.feather"
+    filename: "connectome-weights-male-cns-v1.0-minconf-0.5.feather"
+minimum_synapse_weight: 1

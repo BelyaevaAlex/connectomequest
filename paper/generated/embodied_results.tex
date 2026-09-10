@@ -1,0 +1,27 @@
+\begin{table}[t]
+\centering\scriptsize
+\setlength{\tabcolsep}{3.0pt}
+\caption{Full-episode mechanism audit. Panels are distinct interventions and must not be compared row-wise across panels.}
+\label{tab:full-episode-primary}
+\begin{tabular}{lrrrrrrr}
+\toprule
+\multicolumn{8}{l}{\textit{Panel A: irrelevant evidence withdrawal (381 paired schedule cells)}} \\
+Method & Success & Actions & Pred. & Succ. & Positions & Lookups & Unsupported \\
+\midrule
+Full replanning & 1.000 & 1170.8 & 5903.2 & 17398.8 & 0.0 & 0.0 & -- \\
+Complete validation & 1.000 & 1170.8 & 62.5 & 0.0 & 64.9 & 0.0 & -- \\
+\textbf{Dependency-indexed} & 1.000 & 1170.8 & 0.0 & 0.0 & 0.0 & 1.0 & -- \\
+Unchecked reuse$^{\dagger}$ & 1.000 & 1170.8 & 0.0 & 0.0 & 0.0 & 0.0 & -- \\
+\midrule
+\multicolumn{8}{l}{\textit{Panel B: final-support loss (513 paired episodes)}} \\
+Method & \multicolumn{6}{l}{Unsupported authorization episodes} & Rate \\
+\midrule
+Full replanning & \multicolumn{6}{l}{0/513} & 0.000 \\
+Complete validation & \multicolumn{6}{l}{0/513} & 0.000 \\
+\textbf{Dependency-indexed} & \multicolumn{6}{l}{0/513} & 0.000 \\
+Unchecked reuse$^{\dagger}$ & \multicolumn{6}{l}{511/513} & 0.996 \\
+\bottomrule
+\end{tabular}
+\vspace{1mm}
+\parbox{0.97\linewidth}{\scriptsize Pred./Succ. are predicate evaluations and planner-successor expansions. Positions are retained-suffix positions visited. $^{\dagger}$Unchecked reuse is a safety ablation that performs no validation after an update.}
+\end{table}

@@ -1,0 +1,32 @@
+\begin{table}[t]
+\centering\scriptsize
+\setlength{\tabcolsep}{3pt}
+\caption{Charged actions in the held-out graph evaluation, separated by outcome. The unconditional mean retains failed episodes; Exhaust. is the fraction reaching the controller's 63-action exploration limit (one transition is reserved for the zero-cost submission). These costs must be read jointly with success in Table~\ref{tab:fresh-test}.}
+\label{tab:graph-costs}
+\begin{tabular}{llrrrrr}
+\toprule
+Graph & Policy & $n$ & All & Success & Failure & Exhaust. \\
+\midrule
+H01 & Weight & 1000 & 42.63 & 31.07 & 50.63 & 0.352 \\
+H01 & Random & 3000 & 39.82 & 29.46 & 50.60 & 0.291 \\
+H01 & Recurrent & 3000 & 40.64 & 29.62 & 50.98 & 0.309 \\
+H01 & Attribute & 3000 & 41.27 & 28.18 & 50.42 & 0.345 \\
+H01 & Expert selector & 3000 & 43.14 & 31.20 & 50.83 & 0.365 \\
+H01 & Random$\rightarrow$Attribute & 3000 & 42.05 & 29.31 & 50.61 & 0.348 \\
+\midrule
+MANC & Weight & 1000 & 60.18 & 36.15 & 62.82 & 0.896 \\
+MANC & Random & 3000 & 60.11 & 36.39 & 62.89 & 0.892 \\
+MANC & Recurrent & 3000 & 60.01 & 35.22 & 62.86 & 0.893 \\
+MANC & Attribute & 3000 & 59.96 & 36.05 & 62.93 & 0.887 \\
+MANC & Expert selector & 3000 & 60.03 & 36.98 & 62.93 & 0.886 \\
+MANC & Random$\rightarrow$Attribute & 3000 & 60.19 & 35.60 & 62.93 & 0.897 \\
+\midrule
+HemiBrain & Weight & 1000 & 59.52 & 36.50 & 62.87 & 0.868 \\
+HemiBrain & Random & 3000 & 59.23 & 35.93 & 62.86 & 0.860 \\
+HemiBrain & Recurrent & 3000 & 58.86 & 35.13 & 62.85 & 0.850 \\
+HemiBrain & Attribute & 3000 & 58.91 & 33.45 & 62.86 & 0.860 \\
+HemiBrain & Expert selector & 3000 & 58.83 & 35.73 & 62.86 & 0.846 \\
+HemiBrain & Random$\rightarrow$Attribute & 3000 & 58.86 & 33.57 & 62.87 & 0.858 \\
+\bottomrule
+\end{tabular}
+\end{table}

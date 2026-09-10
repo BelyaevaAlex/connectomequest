@@ -1,0 +1,11 @@
+seed: 17
+visible_neighbors: 32
+max_steps: 64
+answer_quota: 10
+max_memory_slots: 8
+edge_weight_observable: true
+allow_backtrack: true
+invalid_action_cost: 2.0
+inspect_cost: 1.0
+traverse_cost: 1.0
+submit_cost: 0.0

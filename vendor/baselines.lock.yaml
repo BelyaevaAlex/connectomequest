@@ -1,0 +1,43 @@
+schema_version: 1
+cloned_at: "2026-08-09"
+baselines:
+  reasoning:
+    url: https://github.com/zzy2018730/reasoning.git
+    commit: 1fd578f876d85d2b6f51bd40ff16480a57406bd9
+    license: unlicensed
+    usage: reference_only
+  ultra:
+    url: https://github.com/DeepGraphLearning/ULTRA.git
+    commit: 427966ad8ed60420eef034063d44f3153addff90
+    license: MIT
+    provides: [Ultra, UltraQuery]
+  gnnqe:
+    url: https://github.com/DeepGraphLearning/InductiveQE.git
+    commit: ab49a0e64e3449e687e484a42269d9898e1d1325
+    license: MIT
+    provides: [GNN-QE]
+  astarnet:
+    url: https://github.com/DeepGraphLearning/AStarNet.git
+    commit: 4ebefdcafd73bcba7ce5754d3f6cd60cf340ec93
+    license: MIT
+    provides: [AStarNet]
+  nbfnet:
+    url: https://github.com/DeepGraphLearning/NBFNet.git
+    commit: eb49ff2770d1629edb04e96c9a6d7fee809097f2
+    license: MIT
+    provides: [NBFNet]
+  minerva:
+    url: https://github.com/shehzaadzd/MINERVA.git
+    commit: d2f44ad7b48490fe73627cdd357e1465d67d9d75
+    license: Apache-2.0
+    provides: [MINERVA]
+  kgreasoning:
+    url: https://github.com/snap-stanford/KGReasoning.git
+    commit: ec728497f083973edbe8b9e3c4066f416fc74250
+    license: MIT
+    provides: [Query2Box, BetaE]
+  cone:
+    url: https://github.com/MIRALab-USTC/QE-ConE.git
+    commit: cc45b90e3cdce0f609670a257e6f756d28495a93
+    license: MIT
+    provides: [ConE]

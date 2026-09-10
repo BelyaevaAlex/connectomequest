@@ -1,0 +1,58 @@
+"""Explicit controls for the September 2026 post-test paper audit.
+
+No existing checkpoint, visibility rule, or frozen result is changed here.
+"""
+
+import torch
+
+from connectomequest.policies.expert_gate_v2 import ObservableWeightPolicy
+from connectomequest.policies.oracle import PrivilegedOraclePolicy
+
+
+class WeightFirstLearnedSecond:
+    """Use Weight at the first hop and the supplied frozen head at the second."""
+
+    name = "weight_first_learned_second"
+
+    def __init__(self, second):
+        self.first = ObservableWeightPolicy()
+        self.second = second
+
+    def rank(self, query, observation, candidates, *, frontier, device, chunk_size=65536):
+        policy = self.first if frontier else self.second
+        return policy.rank(query, observation, candidates, frontier=frontier,
+                           device=device, chunk_size=chunk_size)
+
+
+class VisibleWitnessOracle(PrivilegedOraclePolicy):
+    """Privileged ranker of witnesses visible under the actual top-V rule.
+
+Unlike the historical heuristic, a middle is useful only if a true answer is
+in its *disclosed* successors. This is still an experimental reference, not
+a general shortest-path solver or a guarantee for arbitrary query languages.
+"""
+
+    def __init__(self, graph, answers_by_query, visible_neighbors=32):
+        super().__init__(graph, answers_by_query)
+        if visible_neighbors < 1:
+            raise ValueError("visibility must be positive")
+        self.visible_neighbors = visible_neighbors
+        self._visible_cache = {}
+
+    def visible(self, middle):
+        if middle not in self._visible_cache:
+            self._visible_cache[middle] = frozenset(self.graph.neighbors(
+                middle, "presynaptic_to", limit=self.visible_neighbors,
+                by_weight=True,
+            ).node_ids.tolist())
+        return self._visible_cache[middle]
+
+    def rank(self, query, observation, candidates, *, frontier, device, chunk_size=65536):
+        if not frontier:
+            return super().rank(query, observation, candidates, frontier=False,
+                                device=device, chunk_size=chunk_size)
+        answers = self.answers_by_query[query.query_id]
+        baseline = ObservableWeightPolicy().rank(
+            query, observation, candidates, frontier=True, device=device)
+        # Stable partition: all middles with at least one visible witness first.
+        return sorted(baseline, key=lambda middle: not bool(answers & self.visible(middle)))

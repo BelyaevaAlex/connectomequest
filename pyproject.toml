@@ -1,0 +1,67 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "connectomequest"
+version = "0.1.0"
+description = "Provenance-aware neuro-symbolic agents for active reasoning over brain wiring graphs"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "fastavro>=1.9",
+  "numpy>=1.26",
+  "pyarrow>=16",
+  "pyyaml>=6",
+  "requests>=2.31",
+  "scipy>=1.12",
+  "torch>=2.2",
+  "tqdm>=4.66",
+  "typer>=0.12",
+]
+
+[project.optional-dependencies]
+neuprint = ["neuprint-python>=0.5"]
+h01 = ["cloud-volume>=12"]
+gcs = ["gcsfs>=2024.6"]
+embodied = ["minigrid>=3.0,<4.0"]
+embodied-ppo = [
+  "minigrid>=3.0,<4.0",
+  "gymnasium==1.2.2",
+  "stable-baselines3==2.7.1",
+  "sb3-contrib==2.7.1",
+]
+dev = [
+  "pytest>=8",
+  "pytest-cov>=5",
+  "ruff>=0.5",
+]
+
+[project.scripts]
+cq = "connectomequest.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/connectomequest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = [
+  "B007",
+  "B023",
+  "B904",
+  "B905",
+  "E402",
+  "E501",
+  "E731",
+  "E741",
+  "SIM102",
+  "SIM105",
+]

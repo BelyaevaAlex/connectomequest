@@ -1,0 +1,12 @@
+seed: 17
+device: cpu
+precision: fp32
+num_workers: 16
+pin_memory: false
+persistent_workers: true
+prefetch_factor: 2
+train_batch_size: 256
+eval_batch_size: 1024
+embedding_dim: 128
+candidate_chunk_size: 8192
+cpu_threads_per_process: 16

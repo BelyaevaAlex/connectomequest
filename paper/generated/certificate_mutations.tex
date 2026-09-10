@@ -1,0 +1,23 @@
+\begin{table}[h]
+\caption{Constructed certificate mutations, reported as rejected/attempted. Rows are correlated coverage checks of the stated mutation generator, not independent attack samples or estimates of an attack-success probability.}
+\label{tab:mutation-breakdown}
+\centering\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{llrrrr}
+\toprule
+Family & Mutation & H01 & MANC & HemiBrain & Total \\
+\midrule
+Provenance/binding & Missing required receipt & 800/800 & 800/800 & 800/800 & 2,400/2,400 \\
+ & Stale episode binding & 800/800 & 800/800 & 800/800 & 2,400/2,400 \\
+ & Wrong graph binding & 800/800 & 800/800 & 800/800 & 2,400/2,400 \\
+ & Wrong query binding & 800/800 & 800/800 & 800/800 & 2,400/2,400 \\
+ & Wrong relation binding & 800/800 & 800/800 & 800/800 & 2,400/2,400 \\
+\midrule
+Structural & Inconsistent middle node & 200/200 & 200/200 & 200/200 & 600/600 \\
+ & Wrong answer binding & 200/200 & 200/200 & 200/200 & 600/600 \\
+ & Wrong semantic receipt & 200/200 & 200/200 & 200/200 & 600/600 \\
+\midrule
+Total & -- & -- & -- & -- & 13,800/13,800 \\
+\bottomrule
+\end{tabular}
+\end{table}

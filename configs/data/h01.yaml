@@ -1,0 +1,10 @@
+name: h01
+version: "20210729-c3"
+license: "CC-BY-4.0"
+gcs_prefix: "gs://h01-release/data/20210729/c3/synapses/exported/"
+https_prefix: "https://storage.googleapis.com/h01-release/data/20210729/c3/synapses/exported/"
+segmentation: "c3"
+include_relations:
+  - presynaptic_to
+  - postsynaptic_to
+minimum_synapse_weight: 1

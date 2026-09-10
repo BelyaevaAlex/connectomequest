@@ -1,0 +1,72 @@
+{
+  "body_pages": 8,
+  "bundle_sha256": {
+    "artifact.zip": "ded62f35084d72414434b87cf0f37338caef7bc03f3d0417e9579d69cb5e4cc2",
+    "main.pdf": "18d4c69e43b7e46390c60509a759162cfff4311b815598df9e234efded5d8980",
+    "sources.zip": "611d1bf487a29e80a90cec5b5d73b7b349ecd7af33087f359129b9ffca6e16c0",
+    "supplement.pdf": "b169eb832e8166ab6e5be284c94094c9fa15a12454ef52f45300de1ee6d7dad5"
+  },
+  "clean_rebuild": {
+    "passed": true,
+    "sources_sha256": "611d1bf487a29e80a90cec5b5d73b7b349ecd7af33087f359129b9ffca6e16c0"
+  },
+  "gates": {
+    "correctness": {
+      "criteria": {
+        "decision_agreement": true,
+        "eligible_long": true
+      },
+      "passed": true
+    },
+    "efficiency": {
+      "criteria": {
+        "cluster_interval_lower": true,
+        "eligible_long": true,
+        "fully_accounted_reduction": true,
+        "instrumented_work_reduction": true
+      },
+      "passed": true
+    }
+  },
+  "identity_scan": {
+    "passed": true
+  },
+  "paper_sources": {
+    "generated/certificate_mutations.tex": "7173950a554eab50e7e43c67009d604387ca70336ca1e816f4ffa8a34f54470b",
+    "generated/certificate_numbers.tex": "f24f5b57b86abaa3738e86b36f1a10c07d413a27b2ed5de1763e59043b51c904",
+    "generated/cluster_intervals.tex": "22cd1ca2e5ab7447b19c550912a21a1f0ad79ea77a5c506371cdeb002ae56435",
+    "generated/embodied_results.tex": "cf898a3ce15b6c5f227f26c53d9456d080a9acc7e9124ca20cba3cb9ec09914f",
+    "generated/graph_costs.tex": "1c0f9e8ac578d396d7917699efa3f1bec1dbb4e66184ee09313fb423581b1c24",
+    "generated/graph_results.tex": "66470a0cc46864ce9eb26a2237ed344d5f17f0b41f19a07c37bf480b328df924",
+    "generated/hop_attribution.tex": "0932865d8cf010867b410813fcc42eb42d9c20845ab4cf5d5beb3a1d62c1fe1d",
+    "generated/paired_coarse_main.tex": "afc8285e2ecac0c2153253f6f75a5810b524b43ae3893e93fb7d972a1ffb91af",
+    "generated/revalidation_numbers.tex": "9a14f3db3d2112d2f98a5fdfcd4dc68e3458f27b03b89cffc86de938e6260327",
+    "generated/revalidation_tradeoff.pdf": "312d466b12b84bfc724f4dff50c820fdd87d0d98352859153f8a5d3f7835b9b0",
+    "generated/semantic_coarsening_details.tex": "6a94264a5b7f3a3d0c92a3abe32d59f26ca661acd2553f256bff5e1a28b16edd",
+    "generated/visible_witness_ceiling.tex": "6229b9e417e60c2be4e6979943c4a26f3501413632deb503cb6b86ab0e8cb2a7",
+    "main.tex": "def7f45c4c55d16109c759e4ac7b905888e499f9faf6c4eaf82ea924d387e630",
+    "neurips_2026.sty": "44e434a8686f64e7f79ab7c2cbf6eeb3d47576bed75b6bb1f60ee1ea47140cf2",
+    "references.bib": "1781268e7762609e473315c75fd1aafe1042e1067205f7154fc0cccc1a3c0750",
+    "supplement.tex": "0fd774a036e55c486713f7d6f9bf9f207e83282c64f086f5fcb6370629c10fe9"
+  },
+  "pdfs": {
+    "main": {
+      "pages": 10,
+      "sha256": "18d4c69e43b7e46390c60509a759162cfff4311b815598df9e234efded5d8980"
+    },
+    "supplement": {
+      "pages": 7,
+      "sha256": "b169eb832e8166ab6e5be284c94094c9fa15a12454ef52f45300de1ee6d7dad5"
+    }
+  },
+  "status": "verified",
+  "terminology_scan": {
+    "passed": true
+  },
+  "tests": {
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0,
+    "tests": 281
+  }
+}

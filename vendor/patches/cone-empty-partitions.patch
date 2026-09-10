@@ -1,0 +1,79 @@
+diff --git a/main.py b/main.py
+index 57523a7..16b6101 100644
+--- a/main.py
++++ b/main.py
+@@ -274,25 +274,30 @@ def main(args):
+                 train_path_queries[query_structure] = train_queries[query_structure]
+             else:
+                 train_other_queries[query_structure] = train_queries[query_structure]
+-        train_path_queries = flatten_query(train_path_queries)
+-        train_path_iterator = SingledirectionalOneShotIterator(DataLoader(
+-            TrainDataset(train_path_queries, nentity, nrelation, args.negative_sample_size, train_answers),
+-            batch_size=args.batch_size,
+-            shuffle=True,
+-            num_workers=args.cpu_num,
+-            collate_fn=TrainDataset.collate_fn
+-        ))
++        train_path_iterator = None
++        if len(train_path_queries) > 0:
++            train_path_queries = flatten_query(train_path_queries)
++            if len(train_path_queries) > 0:
++                train_path_iterator = SingledirectionalOneShotIterator(DataLoader(
++                    TrainDataset(train_path_queries, nentity, nrelation, args.negative_sample_size, train_answers),
++                    batch_size=args.batch_size,
++                    shuffle=True,
++                    num_workers=args.cpu_num,
++                    collate_fn=TrainDataset.collate_fn
++                ))
++        train_other_iterator = None
+         if len(train_other_queries) > 0:
+             train_other_queries = flatten_query(train_other_queries)
+-            train_other_iterator = SingledirectionalOneShotIterator(DataLoader(
+-                TrainDataset(train_other_queries, nentity, nrelation, args.negative_sample_size, train_answers),
+-                batch_size=args.batch_size,
+-                shuffle=True,
+-                num_workers=args.cpu_num,
+-                collate_fn=TrainDataset.collate_fn
+-            ))
+-        else:
+-            train_other_iterator = None
++            if len(train_other_queries) > 0:
++                train_other_iterator = SingledirectionalOneShotIterator(DataLoader(
++                    TrainDataset(train_other_queries, nentity, nrelation, args.negative_sample_size, train_answers),
++                    batch_size=args.batch_size,
++                    shuffle=True,
++                    num_workers=args.cpu_num,
++                    collate_fn=TrainDataset.collate_fn
++                ))
++        if train_path_iterator is None and train_other_iterator is None:
++            raise ValueError("no non-empty training query partitions remain after task filtering")
+
+     logging.info("Validation info:")
+     if args.do_valid:
+@@ -388,17 +393,22 @@ def main(args):
+             if step == 2 * args.max_steps // 3:
+                 args.valid_steps *= 4
+
+-            log = model.train_step(model, optimizer, train_path_iterator, args, step)
+-            if step % 200 == 0:
+-                for metric in log:
+-                    writer.add_scalar('path/' + metric, log[metric], step)
++            log = None
++            if train_path_iterator is not None:
++                log = model.train_step(model, optimizer, train_path_iterator, args, step)
++                if step % 200 == 0:
++                    for metric in log:
++                        writer.add_scalar('path/' + metric, log[metric], step)
+             if train_other_iterator is not None:
+                 log = model.train_step(model, optimizer, train_other_iterator, args, step)
+                 if step % 200 == 0:
+                     for metric in log:
+                         writer.add_scalar('other/' + metric, log[metric], step)
++            if train_path_iterator is not None and train_other_iterator is not None:
+                 log = model.train_step(model, optimizer, train_path_iterator, args, step)
+
++            if log is None:
++                raise RuntimeError("training iterators were not initialized")
+             training_logs.append(log)
+
+             if step >= warm_up_steps:

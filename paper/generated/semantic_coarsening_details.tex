@@ -1,0 +1,24 @@
+\begin{table}[h]
+\centering\scriptsize
+\setlength{\tabcolsep}{3pt}
+\caption{Paired coarsening on the same anchors and pairing identifiers: all policies, paired bootstrap intervals over matched instances, conditional on three frozen model seeds. Frequency-balanced bins are synthetic unions, not ontological equivalence classes.}
+\label{tab:coarse-paired}
+\begin{tabular}{llrrl}
+\toprule
+Graph & Policy & Native & Coarse & Difference [95\% CI] \\
+\midrule
+MANC & Weight & 0.0972 & 0.8226 & +0.7254 [+0.7130,+0.7380] \\
+MANC & Random & 0.1093 & 0.9036 & +0.7943 [+0.7873,+0.8015] \\
+MANC & Recurrent & 0.1121 & 0.8503 & +0.7382 [+0.7294,+0.7474] \\
+MANC & Attribute & 0.1088 & 0.8644 & +0.7556 [+0.7446,+0.7667] \\
+MANC & Expert selector & 0.1103 & 0.8629 & +0.7527 [+0.7415,+0.7637] \\
+MANC & Random$\to$Attribute & 0.1123 & 0.8741 & +0.7618 [+0.7533,+0.7698] \\
+HemiBrain & Weight & 0.1290 & 0.7858 & +0.6568 [+0.6438,+0.6702] \\
+HemiBrain & Random & 0.1765 & 0.8887 & +0.7122 [+0.7033,+0.7203] \\
+HemiBrain & Recurrent & 0.1534 & 0.8257 & +0.6723 [+0.6609,+0.6837] \\
+HemiBrain & Attribute & 0.1373 & 0.8167 & +0.6793 [+0.6673,+0.6911] \\
+HemiBrain & Expert selector & 0.1409 & 0.8081 & +0.6671 [+0.6545,+0.6798] \\
+HemiBrain & Random$\to$Attribute & 0.1477 & 0.8176 & +0.6699 [+0.6599,+0.6799] \\
+\bottomrule
+\end{tabular}
+\end{table}

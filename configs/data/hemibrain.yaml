@@ -1,0 +1,13 @@
+name: hemibrain
+version: "v1.2.1"
+neuprint_dataset: "hemibrain:v1.2.1"
+server: "https://neuprint.janelia.org"
+license: "CC-BY-4.0"
+include_relations:
+  - presynaptic_to
+  - postsynaptic_to
+  - in_roi
+  - has_type
+  - has_instance
+  - has_cell_body_fiber
+minimum_synapse_weight: 1
