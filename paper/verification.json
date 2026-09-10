@@ -2,13 +2,13 @@
   "body_pages": 8,
   "bundle_sha256": {
     "artifact.zip": "ded62f35084d72414434b87cf0f37338caef7bc03f3d0417e9579d69cb5e4cc2",
-    "main.pdf": "d73efc0e40babdb96884bcae05c1be32254c143a3b951f606a0404ae1a910510",
-    "sources.zip": "26640b80c11703f59f3794140ba8f79d9b58070746f19de08f7f1fd4d2f81d3d",
-    "supplement.pdf": "0296919d954128354b20d73571e64b77043c6a5a8512d6f0fc5e5a0208c2cfea"
+    "main.pdf": "edceef4e69da97a551832e4a56ccc13e2e9dc538f88389b00709fde6f58bbd1d",
+    "sources.zip": "f180c425235ad4efd1c9e93ee7e4f7a72e7c68afaff910a5c075c37185164eee",
+    "supplement.pdf": "faab60e4ae7d16d810a044ed3a29ad36b139ee4e3d2a015f5d52128bec8d7fe9"
   },
   "clean_rebuild": {
     "passed": true,
-    "sources_sha256": "26640b80c11703f59f3794140ba8f79d9b58070746f19de08f7f1fd4d2f81d3d"
+    "sources_sha256": "f180c425235ad4efd1c9e93ee7e4f7a72e7c68afaff910a5c075c37185164eee"
   },
   "gates": {
     "correctness": {
@@ -45,19 +45,19 @@
     "generated/revalidation_tradeoff.pdf": "312d466b12b84bfc724f4dff50c820fdd87d0d98352859153f8a5d3f7835b9b0",
     "generated/semantic_coarsening_details.tex": "6a94264a5b7f3a3d0c92a3abe32d59f26ca661acd2553f256bff5e1a28b16edd",
     "generated/visible_witness_ceiling.tex": "6229b9e417e60c2be4e6979943c4a26f3501413632deb503cb6b86ab0e8cb2a7",
-    "main.tex": "d73b23743ab5549739d5c411d367a881b9fa85ac872a3528ad491a5c557c265a",
+    "main.tex": "e000e1540d00a405db7bdace08134c2ab32dee65384097021d979e13944be080",
     "neurips_2026.sty": "44e434a8686f64e7f79ab7c2cbf6eeb3d47576bed75b6bb1f60ee1ea47140cf2",
     "references.bib": "1781268e7762609e473315c75fd1aafe1042e1067205f7154fc0cccc1a3c0750",
-    "supplement.tex": "0fd774a036e55c486713f7d6f9bf9f207e83282c64f086f5fcb6370629c10fe9"
+    "supplement.tex": "f2bcdd28dc9d0699e509bac8104e95846c64d5fe5714555ae05e276fe9c866c6"
   },
   "pdfs": {
     "main": {
       "pages": 10,
-      "sha256": "d73efc0e40babdb96884bcae05c1be32254c143a3b951f606a0404ae1a910510"
+      "sha256": "edceef4e69da97a551832e4a56ccc13e2e9dc538f88389b00709fde6f58bbd1d"
     },
     "supplement": {
       "pages": 7,
-      "sha256": "0296919d954128354b20d73571e64b77043c6a5a8512d6f0fc5e5a0208c2cfea"
+      "sha256": "faab60e4ae7d16d810a044ed3a29ad36b139ee4e3d2a015f5d52128bec8d7fe9"
     }
   },
   "status": "verified",

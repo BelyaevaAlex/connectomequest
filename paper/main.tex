@@ -310,11 +310,10 @@ probability.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\linewidth,trim=0 90 0 55,clip]{generated/framework_diagram.png}
-\caption{Certificate-carrying interaction loop. Proposals are mapped to required
-claims and authorized only when active receipts support them; typed updates use
-a dependency index to revalidate affected claims. Graph and RGB tasks share the
-interface, not policies or semantics.}
+\includegraphics[width=0.92\linewidth]{generated/framework_diagram.png}
+\caption{Certificate-carrying interaction loop. Graph and RGB tasks share
+receipt-backed authorization and dependency-indexed revision, but not policies
+or task semantics.}
 \label{fig:architecture}
 \end{figure}
 
@@ -638,26 +637,22 @@ advantage in physical action count or perception accuracy.
 
 \section{Discussion}
 
-The experiments establish three separable facts. First, target granularity and the resulting visible target prevalence strongly
-affect witness acquisition under fixed wiring, visibility, and action budgets. Second, no candidate ordering is uniformly best: random branch
-diversification is competitive on two graphs, while learned second-hop ordering
-helps on HemiBrain. Third, certificate validity is independent of search quality.
-A weak policy may return no certificate; a successful policy is accepted only
-when its active receipts support every required claim.
+The experiments separate three facts. Target granularity changes visible target
+prevalence and witness acquisition under fixed wiring and budgets. No ordering is
+uniformly best: random diversification is competitive on two graphs, while
+learned second-hop ordering helps on HemiBrain. Certificate validity is
+independent of search quality: weak policies may return no certificate, and
+success requires active receipt support for every required claim.
 
-The RGB study isolates evidence management, not broad robotics performance. On
-long retained plans under sparse updates, dependency indexing preserves
-complete-validation decisions while reducing validation-and-replanning CPU time;
-unchecked reuse fails after final support loss. The study does not compare
-model-free reinforcement learning, action efficiency, or perceptual correctness.
-Only the interface transfers; policies, planners, and required-claim definitions
-remain task-specific.
-
-The guarantees assume a trusted issuer, complete dependencies, and declared
-updates; they neither authenticate receipts nor detect issuer error.
-Proposition~\ref{prop:receipt-next-action} equates the validation procedures
-under its assumptions, but not either with global replanning.
-\href{https://anonymous.4open.science/r/connectomequest/README.md}{Anonymous code and artifacts}.
+The RGB study isolates evidence management. On long plans under sparse updates,
+dependency indexing preserves complete-validation decisions while reducing
+validation-and-replanning CPU time; unchecked reuse fails after final support
+loss. It does not evaluate reinforcement learning, action efficiency, perceptual
+correctness, or transfer of task-specific policies, planners, and claims.
+Under trusted issuance, complete dependencies, and declared updates,
+Proposition~\ref{prop:receipt-next-action} equates the two validation
+procedures, not either with global replanning; it neither authenticates receipts
+nor detects issuer error (\href{https://anonymous.4open.science/r/connectomequest/README.md}{anonymous code and artifacts}).
 
 
 
