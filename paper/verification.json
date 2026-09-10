@@ -2,13 +2,13 @@
   "body_pages": 8,
   "bundle_sha256": {
     "artifact.zip": "ded62f35084d72414434b87cf0f37338caef7bc03f3d0417e9579d69cb5e4cc2",
-    "main.pdf": "107906f3bde5ab6baff59f8c079fe38bde0b9963e2e5ada6f6f62b91d8882a1b",
-    "sources.zip": "c1c08f2829c2f23ba99a0338dd5b3587d776053dc9a31c855d1af993812839eb",
+    "main.pdf": "d73efc0e40babdb96884bcae05c1be32254c143a3b951f606a0404ae1a910510",
+    "sources.zip": "26640b80c11703f59f3794140ba8f79d9b58070746f19de08f7f1fd4d2f81d3d",
     "supplement.pdf": "0296919d954128354b20d73571e64b77043c6a5a8512d6f0fc5e5a0208c2cfea"
   },
   "clean_rebuild": {
     "passed": true,
-    "sources_sha256": "c1c08f2829c2f23ba99a0338dd5b3587d776053dc9a31c855d1af993812839eb"
+    "sources_sha256": "26640b80c11703f59f3794140ba8f79d9b58070746f19de08f7f1fd4d2f81d3d"
   },
   "gates": {
     "correctness": {
@@ -36,6 +36,7 @@
     "generated/certificate_numbers.tex": "f24f5b57b86abaa3738e86b36f1a10c07d413a27b2ed5de1763e59043b51c904",
     "generated/cluster_intervals.tex": "22cd1ca2e5ab7447b19c550912a21a1f0ad79ea77a5c506371cdeb002ae56435",
     "generated/embodied_results.tex": "cf898a3ce15b6c5f227f26c53d9456d080a9acc7e9124ca20cba3cb9ec09914f",
+    "generated/framework_diagram.png": "e509bd2a846f2d6b921b2c2409b960c279ee4b53608aa1fa8f3ca2554fda7100",
     "generated/graph_costs.tex": "1c0f9e8ac578d396d7917699efa3f1bec1dbb4e66184ee09313fb423581b1c24",
     "generated/graph_results.tex": "66470a0cc46864ce9eb26a2237ed344d5f17f0b41f19a07c37bf480b328df924",
     "generated/hop_attribution.tex": "0932865d8cf010867b410813fcc42eb42d9c20845ab4cf5d5beb3a1d62c1fe1d",
@@ -44,7 +45,7 @@
     "generated/revalidation_tradeoff.pdf": "312d466b12b84bfc724f4dff50c820fdd87d0d98352859153f8a5d3f7835b9b0",
     "generated/semantic_coarsening_details.tex": "6a94264a5b7f3a3d0c92a3abe32d59f26ca661acd2553f256bff5e1a28b16edd",
     "generated/visible_witness_ceiling.tex": "6229b9e417e60c2be4e6979943c4a26f3501413632deb503cb6b86ab0e8cb2a7",
-    "main.tex": "62b749b43a2ad40ffaea89df2cfe6ffaf93186441a0de1302f989e13e7da6277",
+    "main.tex": "d73b23743ab5549739d5c411d367a881b9fa85ac872a3528ad491a5c557c265a",
     "neurips_2026.sty": "44e434a8686f64e7f79ab7c2cbf6eeb3d47576bed75b6bb1f60ee1ea47140cf2",
     "references.bib": "1781268e7762609e473315c75fd1aafe1042e1067205f7154fc0cccc1a3c0750",
     "supplement.tex": "0fd774a036e55c486713f7d6f9bf9f207e83282c64f086f5fcb6370629c10fe9"
@@ -52,7 +53,7 @@
   "pdfs": {
     "main": {
       "pages": 10,
-      "sha256": "107906f3bde5ab6baff59f8c079fe38bde0b9963e2e5ada6f6f62b91d8882a1b"
+      "sha256": "d73efc0e40babdb96884bcae05c1be32254c143a3b951f606a0404ae1a910510"
     },
     "supplement": {
       "pages": 7,

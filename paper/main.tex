@@ -281,9 +281,6 @@ random tape \(\xi\), let \(F_{\mathcal K_\pi}\) denote the controller-state upda
  z_{t+1}&=F_{\mathcal K_\pi}(z_t,o_t,a_t,\Omega_{d,q}(s_{t+1});\xi).
  \end{aligned}
 \]
-Thus \(\pi\) orders controller-supplied candidates; it cannot alter
-admissibility, observation, cost, or certificate acceptance.
-
 \paragraph{Actions and evaluation.}
 The evaluated controller uses \textsc{Inspect}, \textsc{Traverse},
 \textsc{CheckEdge}, \textsc{Backtrack}, and \textsc{Submit}.
@@ -313,27 +310,11 @@ probability.
 
 \begin{figure}[t]
 \centering
-\begin{tikzpicture}[scale=0.72,transform shape,node distance=3mm and 8mm,
- box/.style={draw,rounded corners,align=center,inner sep=2.7pt,font=\small},
- learned/.style={box,fill=blue!8},symbolic/.style={box,fill=orange!12},
- data/.style={box,fill=gray!10},arr/.style={-{Latex[length=1.6mm]},thick}]
-\node[data] (obs) {bounded observation};
-\node[learned,right=of obs] (proposal) {learned module\\proposes output $u$};
-\node[symbolic,right=of proposal] (obl) {task map\\$u\mapsto\mathcal E(u)$};
-\node[data,below=of obs] (receipts) {active receipts};
-\node[data,below=of proposal] (update) {typed update $(W_t,N_t)$};
-\node[symbolic,below=of obl] (index) {dependency index\\affected claims};
-\node[symbolic,right=of index] (decision) {verifier\\authorize or replan};
-\draw[arr] (obs)--(proposal); \draw[arr] (proposal)--(obl);
-\draw[arr] (receipts)--(decision); \draw[arr] (obl)--(decision);
-\draw[arr] (update)--(index); \draw[arr] (index)--(decision);
-\draw[arr] (decision.north) -- ++(0,4mm) -| (obs.east);
-\end{tikzpicture}
-\caption{Common runtime loop. In the graph task, $u$ is an answer and
-$\mathcal E(u)$ contains three required edge claims. In RGB planning,
-$u$ is an action and $\mathcal E(u)$ contains its required symbolic claims.
-Policies, predicates, and learned weights are task-specific; the shared object is
-the certificate-carrying interaction protocol.}
+\includegraphics[width=\linewidth,trim=0 90 0 55,clip]{generated/framework_diagram.png}
+\caption{Certificate-carrying interaction loop. Proposals are mapped to required
+claims and authorized only when active receipts support them; typed updates use
+a dependency index to revalidate affected claims. Graph and RGB tasks share the
+interface, not policies or semantics.}
 \label{fig:architecture}
 \end{figure}
 
@@ -610,12 +591,9 @@ reported separately in the experiment.
 
 
 
-We compare full replanning, complete validation of the retained plan,
-dependency-indexed validation, and unchecked reuse under the same planner,
-action model, RGB observations, and generated update schedule. The study
-generated 800 layouts and retained 513 by a method-independent eligibility rule,
-yielding 12,312 method--condition rows and 3,078 complete paired cells. Every
-stored environment trace replays exactly.
+All four methods share the planner, action model, RGB observations, and update
+schedule. A method-independent rule retains 513 of 800 generated layouts,
+yielding 3,078 paired cells; every stored trace replays exactly.
 
 
 \begin{figure*}[t]
@@ -667,24 +645,19 @@ helps on HemiBrain. Third, certificate validity is independent of search quality
 A weak policy may return no certificate; a successful policy is accepted only
 when its active receipts support every required claim.
 
-The RGB instantiation isolates a control mechanism rather than a broad robotics
-result. On long retained plans with repeated sparse updates, dependency indexing
-preserves the decisions of complete retained-plan validation while reducing
-validation-and-replanning CPU time, including index construction and
-maintenance.
-Unchecked reuse demonstrates the corresponding safety failure after final
-support loss.
-The RGB study evaluates evidence management rather than comparative performance
-against model-free reinforcement learning, physical action efficiency, or the
-correctness of learned perception. Only the
-interface transfers between graph exploration and RGB planning; policies,
-planners, and required-claim definitions remain task-specific.
+The RGB study isolates evidence management, not broad robotics performance. On
+long retained plans under sparse updates, dependency indexing preserves
+complete-validation decisions while reducing validation-and-replanning CPU time;
+unchecked reuse fails after final support loss. The study does not compare
+model-free reinforcement learning, action efficiency, or perceptual correctness.
+Only the interface transfers; policies, planners, and required-claim definitions
+remain task-specific.
 
-These guarantees assume a trusted issuer, complete dependencies, and declared
-update semantics; they neither authenticate receipts nor detect a wrong issuer.
-The validation procedures are equivalent only under
-Proposition~\ref{prop:receipt-next-action} and need not match global replanning
-after unrelated changes. \href{https://anonymous.4open.science/r/connectomequest/README.md}{Anonymous code and artifacts}.
+The guarantees assume a trusted issuer, complete dependencies, and declared
+updates; they neither authenticate receipts nor detect issuer error.
+Proposition~\ref{prop:receipt-next-action} equates the validation procedures
+under its assumptions, but not either with global replanning.
+\href{https://anonymous.4open.science/r/connectomequest/README.md}{Anonymous code and artifacts}.
 
 
 
