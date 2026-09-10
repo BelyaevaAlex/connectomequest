@@ -2,13 +2,13 @@
   "body_pages": 8,
   "bundle_sha256": {
     "artifact.zip": "ded62f35084d72414434b87cf0f37338caef7bc03f3d0417e9579d69cb5e4cc2",
-    "main.pdf": "18d4c69e43b7e46390c60509a759162cfff4311b815598df9e234efded5d8980",
-    "sources.zip": "611d1bf487a29e80a90cec5b5d73b7b349ecd7af33087f359129b9ffca6e16c0",
-    "supplement.pdf": "b169eb832e8166ab6e5be284c94094c9fa15a12454ef52f45300de1ee6d7dad5"
+    "main.pdf": "107906f3bde5ab6baff59f8c079fe38bde0b9963e2e5ada6f6f62b91d8882a1b",
+    "sources.zip": "c1c08f2829c2f23ba99a0338dd5b3587d776053dc9a31c855d1af993812839eb",
+    "supplement.pdf": "0296919d954128354b20d73571e64b77043c6a5a8512d6f0fc5e5a0208c2cfea"
   },
   "clean_rebuild": {
     "passed": true,
-    "sources_sha256": "611d1bf487a29e80a90cec5b5d73b7b349ecd7af33087f359129b9ffca6e16c0"
+    "sources_sha256": "c1c08f2829c2f23ba99a0338dd5b3587d776053dc9a31c855d1af993812839eb"
   },
   "gates": {
     "correctness": {
@@ -44,7 +44,7 @@
     "generated/revalidation_tradeoff.pdf": "312d466b12b84bfc724f4dff50c820fdd87d0d98352859153f8a5d3f7835b9b0",
     "generated/semantic_coarsening_details.tex": "6a94264a5b7f3a3d0c92a3abe32d59f26ca661acd2553f256bff5e1a28b16edd",
     "generated/visible_witness_ceiling.tex": "6229b9e417e60c2be4e6979943c4a26f3501413632deb503cb6b86ab0e8cb2a7",
-    "main.tex": "def7f45c4c55d16109c759e4ac7b905888e499f9faf6c4eaf82ea924d387e630",
+    "main.tex": "62b749b43a2ad40ffaea89df2cfe6ffaf93186441a0de1302f989e13e7da6277",
     "neurips_2026.sty": "44e434a8686f64e7f79ab7c2cbf6eeb3d47576bed75b6bb1f60ee1ea47140cf2",
     "references.bib": "1781268e7762609e473315c75fd1aafe1042e1067205f7154fc0cccc1a3c0750",
     "supplement.tex": "0fd774a036e55c486713f7d6f9bf9f207e83282c64f086f5fcb6370629c10fe9"
@@ -52,11 +52,11 @@
   "pdfs": {
     "main": {
       "pages": 10,
-      "sha256": "18d4c69e43b7e46390c60509a759162cfff4311b815598df9e234efded5d8980"
+      "sha256": "107906f3bde5ab6baff59f8c079fe38bde0b9963e2e5ada6f6f62b91d8882a1b"
     },
     "supplement": {
       "pages": 7,
-      "sha256": "b169eb832e8166ab6e5be284c94094c9fa15a12454ef52f45300de1ee6d7dad5"
+      "sha256": "0296919d954128354b20d73571e64b77043c6a5a8512d6f0fc5e5a0208c2cfea"
     }
   },
   "status": "verified",

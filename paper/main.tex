@@ -680,12 +680,11 @@ correctness of learned perception. Only the
 interface transfers between graph exploration and RGB planning; policies,
 planners, and required-claim definitions remain task-specific.
 
-The guarantees require a trusted receipt issuer, complete retained-plan
-dependencies, and declared update semantics; they neither authenticate
-cryptographically nor detect a systematically wrong issuer. Selective and
-complete retained-plan validation are equivalent under
-Proposition~\ref{prop:receipt-next-action}, but neither need match global
-replanning after an unrelated world change.
+These guarantees assume a trusted issuer, complete dependencies, and declared
+update semantics; they neither authenticate receipts nor detect a wrong issuer.
+The validation procedures are equivalent only under
+Proposition~\ref{prop:receipt-next-action} and need not match global replanning
+after unrelated changes. \href{https://anonymous.4open.science/r/connectomequest/README.md}{Anonymous code and artifacts}.
 
 
 
