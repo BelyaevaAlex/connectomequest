@@ -1,0 +1,53 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "connectomequest"
+version = "0.1.0"
+description = "Certifying typed-input statements in Drosophila connectomes with few checks"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "matplotlib>=3.8",
+  "numba>=0.59",
+  "numpy>=1.26",
+  "pandas>=2.1",
+  "pyarrow>=16",
+  "pyyaml>=6",
+  "scikit-learn>=1.4",
+  "scipy>=1.12",
+  "threadpoolctl>=3.2",
+  "torch>=2.2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/connectomequest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = [
+  "B007",
+  "B023",
+  "B904",
+  "B905",
+  "E402",
+  "E501",
+  "E731",
+  "E741",
+  "SIM102",
+  "SIM105",
+]
